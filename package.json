@@ -1,0 +1,43 @@
+{
+  "name": "madar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "dev:server": "node --watch server/index.ts --api-only",
+    "dev:client": "vite",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build && node scripts/build-server.mjs",
+    "start": "node dist/server/index.mjs",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "db:bootstrap-admin": "node --env-file=.env scripts/bootstrap-admin.ts"
+  },
+  "dependencies": {
+    "@radix-ui/react-direction": "1.2.0",
+    "@trpc/client": "11.29.7",
+    "@trpc/server": "11.29.7",
+    "drizzle-orm": "0.45.4",
+    "express": "5.3.0",
+    "mysql2": "3.24.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.5",
+    "@types/express": "5.0.6",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.3.0",
+    "drizzle-kit": "0.31.11",
+    "esbuild": "0.28.2",
+    "tailwindcss": "4.3.5",
+    "typescript": "7.0.2",
+    "vite": "8.3.8",
+    "vitest": "5.1.1"
+  }
+}

@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #006362;
+  --color-ink: #344052;
+  --color-muted: #566478;
+  --color-line: #dce3f0;
+  --color-input-border: #8295aa;
+  --color-danger: #903d48;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: system-ui, "Segoe UI", Tahoma, sans-serif;
+  color: var(--color-ink);
+  background: #f4f7fb;
+  line-height: 1.65;
+}
+
+@layer components {
+  .control {
+    @apply min-h-11 cursor-pointer rounded-xl border border-brand px-4 font-medium text-brand hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand disabled:cursor-wait disabled:opacity-60;
+  }
+  .app-shell {
+    @apply mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 sm:px-8;
+  }
+  .app-header {
+    @apply flex items-center justify-between gap-4 py-6 sm:py-8;
+  }
+  .brand-mark {
+    @apply grid size-12 shrink-0 place-items-center rounded-2xl bg-brand/8 p-1.5 text-brand;
+  }
+  .auth-layout {
+    @apply my-auto grid overflow-hidden rounded-3xl border border-line bg-white shadow-[0_16px_70px_-35px_rgba(20,65,85,0.3)] md:grid-cols-2;
+  }
+  .auth-intro {
+    @apply relative isolate flex flex-col overflow-hidden bg-brand px-6 py-8 text-white sm:px-10 md:min-h-[590px] md:py-12;
+    background-image: radial-gradient(ellipse at 15% 90%, #155c59 0%, transparent 65%);
+  }
+  .intro-eyebrow {
+    @apply text-sm font-medium text-white;
+  }
+  .intro-heading {
+    @apply mt-5 whitespace-pre-line text-3xl font-bold leading-[1.55] tracking-tight sm:text-4xl md:mt-10;
+  }
+  .intro-description {
+    @apply mt-4 max-w-sm text-sm leading-7 text-white sm:text-base;
+  }
+  .intro-note {
+    @apply relative mt-7 flex items-center gap-2 text-xs text-white md:mt-auto md:pt-16 sm:text-sm;
+  }
+  .orbit-art {
+    @apply pointer-events-none absolute -bottom-9 -end-12 hidden size-80 -rotate-12 md:block;
+    z-index: -1;
+  }
+  .orbit-art span, .orbit-art i {
+    position: absolute;
+    inset: 30% -15%;
+    border: 1px solid rgb(255 255 255 / 22%);
+    border-radius: 50%;
+    transform: rotate(-30deg);
+  }
+  .orbit-art i { inset: 12%; transform: rotate(30deg); }
+  .orbit-art b { position: absolute; inset: 35%; border-radius: 50%; background: rgb(255 255 255 / 9%); }
+  .auth-card {
+    @apply flex min-w-0 items-center px-6 py-9 sm:px-10 sm:py-12;
+  }
+  .auth-content {
+    @apply w-full;
+  }
+  .section-eyebrow {
+    @apply mb-2 block text-sm font-semibold text-brand;
+  }
+  .card-title {
+    @apply text-2xl font-bold leading-relaxed tracking-tight text-ink;
+  }
+  .card-description {
+    @apply mt-2 text-sm leading-7 text-muted;
+  }
+  .auth-form {
+    @apply mt-7 grid gap-4;
+  }
+  .field {
+    @apply grid min-w-0 gap-2 text-sm font-medium text-ink;
+  }
+  .field input {
+    @apply min-h-12 w-full min-w-0 rounded-xl border border-input-border bg-white px-3 text-base text-ink outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:bg-slate-50;
+  }
+  .field input[aria-invalid=true] { border-color: var(--color-danger); }
+  .field-hint {
+    @apply text-xs leading-6 text-muted;
+  }
+  .password-toggle {
+    @apply flex min-h-11 cursor-pointer items-center gap-2 text-sm text-muted;
+  }
+  .password-toggle input { accent-color: var(--color-brand); width: 18px; height: 18px; }
+  .primary-button {
+    @apply flex min-h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#00504f] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand disabled:cursor-wait disabled:opacity-60;
+  }
+  [dir=rtl] .primary-button > span { transform: scaleX(-1); }
+  .account-help {
+    @apply mt-6 border-t border-line pt-5 text-xs leading-6 text-muted;
+  }
+  .feedback {
+    @apply mt-5 rounded-xl border px-4 py-3 text-sm leading-7;
+  }
+  .feedback-error {
+    @apply border-[#e7bfc5] bg-[#fbe9ed] text-danger;
+  }
+  .feedback-success {
+    @apply border-[#c3e6d6] bg-[#e7f5ee] text-[#145e49];
+  }
+  .state-panel {
+    @apply mx-auto flex w-full flex-col items-center py-8 text-center;
+  }
+  .state-panel .card-title { @apply mt-5 mb-3 text-xl; }
+  .state-symbol, .success-symbol {
+    @apply grid size-12 place-items-center rounded-2xl bg-brand/8 text-2xl font-semibold text-brand;
+  }
+  .loading-ring {
+    @apply size-9 rounded-full border-[3px] border-line border-t-brand;
+    animation: spin 1s linear infinite;
+  }
+  .account-details {
+    @apply mt-7 grid gap-4 rounded-2xl border border-line bg-slate-50 p-5;
+  }
+  .account-details div { @apply flex flex-wrap items-baseline justify-between gap-2; }
+  .account-details dt { @apply text-sm text-muted; }
+  .account-details dd { @apply min-w-0 break-words text-sm font-semibold; margin: 0; }
+  .workspace-note { @apply mt-5 text-sm leading-7 text-muted; }
+  .app-footer {
+    @apply py-6 text-center text-xs leading-6 text-muted;
+  }
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .loading-ring { animation: none; } }

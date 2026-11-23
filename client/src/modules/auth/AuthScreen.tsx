@@ -1,0 +1,133 @@
+import { useState } from 'react';
+import type { FormEvent } from 'react';
+import { messages } from '../../i18n/locale.ts';
+import type { Language } from '../../i18n/locale.ts';
+import { useAuth } from './useAuth.ts';
+
+type Labels = typeof messages.ar;
+
+function errorLabel(error: string, labels: Labels) {
+  const keys: Record<string, keyof Labels> = {
+    AUTH_INVALID_CREDENTIALS: 'invalidCredentials', AUTH_RATE_LIMITED: 'rateLimited',
+    AUTH_REQUIRED: 'sessionExpired', AUTH_FORBIDDEN: 'forbidden', AUTH_CSRF: 'csrfFailed',
+    AUTH_INVALID_INPUT: 'invalidInput', AUTH_PASSWORD_POLICY: 'passwordPolicy',
+    AUTH_PASSWORD_REUSED: 'passwordReused', AUTH_UNAVAILABLE: 'requestFailed',
+    AUTH_UNCERTAIN: 'operationUncertain', AUTH_LOGOUT_UNCERTAIN: 'logoutUncertain',
+  };
+  return labels[keys[error] ?? 'requestFailed'];
+}
+
+function PasswordForm({ labels, pending, onSubmit }: {
+  labels: Labels;
+  pending: boolean;
+  onSubmit: (current: string, next: string) => Promise<void>;
+}) {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [visible, setVisible] = useState(false);
+  const [validation, setValidation] = useState<'invalidInput' | 'passwordPolicy' | 'passwordMismatch' | null>(null);
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!current || Array.from(current).length > 128) { setValidation('invalidInput'); return; }
+    if (Array.from(next).length < 15 || Array.from(next).length > 128) { setValidation('passwordPolicy'); return; }
+    if (next !== confirmation) { setValidation('passwordMismatch'); return; }
+    const oldPassword = current;
+    const newPassword = next;
+    setCurrent(''); setNext(''); setConfirmation(''); setValidation(null); setVisible(false);
+    await onSubmit(oldPassword, newPassword);
+  };
+  return (
+    <form onSubmit={submit} noValidate className="auth-form" aria-busy={pending}>
+      <fieldset disabled={pending} className="contents">
+        <label className="field" htmlFor="current-password"><span>{labels.currentPassword}</span><input id="current-password" name="current-password" dir="ltr" type={visible ? 'text' : 'password'} autoComplete="current-password" required aria-invalid={validation === 'invalidInput' || undefined} aria-describedby={validation === 'invalidInput' ? 'password-form-error' : undefined} value={current} onChange={event => { setCurrent(event.target.value); setValidation(null); }} /></label>
+        <label className="field" htmlFor="new-password"><span>{labels.newPassword}</span><input id="new-password" name="new-password" dir="ltr" type={visible ? 'text' : 'password'} autoComplete="new-password" required aria-invalid={validation === 'passwordPolicy' || undefined} aria-describedby={validation === 'passwordPolicy' ? 'password-hint password-form-error' : 'password-hint'} value={next} onChange={event => { setNext(event.target.value); setValidation(null); }} /></label>
+        <p id="password-hint" className="field-hint">{labels.passwordHint}</p>
+        <label className="field" htmlFor="confirm-password"><span>{labels.confirmPassword}</span><input id="confirm-password" name="confirm-password" dir="ltr" type={visible ? 'text' : 'password'} autoComplete="new-password" required aria-invalid={validation === 'passwordMismatch' || undefined} aria-describedby={validation === 'passwordMismatch' ? 'password-form-error' : undefined} value={confirmation} onChange={event => { setConfirmation(event.target.value); setValidation(null); }} /></label>
+        {validation && <p role="alert" className="feedback feedback-error" id="password-form-error">{labels[validation]}</p>}
+        <label className="password-toggle"><input type="checkbox" checked={visible} onChange={event => setVisible(event.target.checked)} />{visible ? labels.hidePassword : labels.showPassword}</label>
+        <button type="submit" className="primary-button">{pending ? labels.saving : labels.savePassword}</button>
+      </fieldset>
+    </form>
+  );
+}
+
+function LoginForm({ labels, pending, onSubmit }: {
+  labels: Labels;
+  pending: boolean;
+  onSubmit: (username: string, password: string) => Promise<void>;
+}) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [visible, setVisible] = useState(false);
+  const [invalid, setInvalid] = useState(false);
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!username.trim() || Array.from(username).length > 64 || !password || Array.from(password).length > 128) { setInvalid(true); return; }
+    const submittedPassword = password;
+    setPassword(''); setVisible(false); setInvalid(false);
+    await onSubmit(username, submittedPassword);
+  };
+  return (
+    <form onSubmit={submit} noValidate className="auth-form" aria-busy={pending}>
+      <fieldset disabled={pending} className="contents">
+        <label className="field" htmlFor="username"><span>{labels.username}</span><input id="username" name="username" dir="ltr" autoComplete="username" autoCapitalize="none" spellCheck={false} required aria-invalid={invalid || undefined} aria-describedby={invalid ? 'login-form-error' : undefined} value={username} onChange={event => { setUsername(event.target.value); setInvalid(false); }} /></label>
+        <label className="field" htmlFor="password"><span>{labels.password}</span><input id="password" name="password" dir="ltr" type={visible ? 'text' : 'password'} autoComplete="current-password" required aria-invalid={invalid || undefined} aria-describedby={invalid ? 'login-form-error' : undefined} value={password} onChange={event => { setPassword(event.target.value); setInvalid(false); }} /></label>
+        {invalid && <p role="alert" className="feedback feedback-error" id="login-form-error">{labels.invalidInput}</p>}
+        <label className="password-toggle"><input type="checkbox" checked={visible} onChange={event => setVisible(event.target.checked)} />{visible ? labels.hidePassword : labels.showPassword}</label>
+        <button type="submit" className="primary-button">{pending ? labels.loggingIn : labels.login}<span aria-hidden="true">↗</span></button>
+      </fieldset>
+    </form>
+  );
+}
+
+export function AuthScreen({ language }: { language: Language }) {
+  const labels = messages[language];
+  const auth = useAuth();
+  const { session, loading, pending, error, notice } = auth;
+  if (loading || (pending && !session)) return (
+    <div className="state-panel" role="status" aria-live="polite">
+      <span className="loading-ring" aria-hidden="true" /><h2 className="card-title">{pending ? labels.working : labels.checking}</h2><p className="text-muted">{labels.checkingDescription}</p>
+    </div>
+  );
+  if (!session) return (
+    <div className="state-panel">
+      <span className="state-symbol" aria-hidden="true">!</span><h2 className="card-title">{labels.unavailable}</h2>
+      <p className="text-muted" role="alert">{error ? errorLabel(error, labels) : labels.unavailableDescription}</p>
+      <button type="button" className="primary-button mt-5" disabled={pending} onClick={() => { void auth.refresh(); }}>{labels.retry}</button>
+    </div>
+  );
+  const role = session.user?.roleCode;
+  const roleName = role === 'system_admin' ? labels.adminRole : role === 'hr' ? labels.hrRole : labels.assignedRole;
+  return (
+    <div className="auth-content">
+      {session.state === 'authenticated' ? (
+        <>
+          <span className="success-symbol" aria-hidden="true">✓</span>
+          <h2 className="card-title mt-4">{labels.welcome}</h2>
+          <p className="card-description">{labels.signedIn}</p>
+          {notice && <p role="status" className="feedback feedback-success">{labels[notice]}</p>}
+          {error && <p role="alert" className="feedback feedback-error">{errorLabel(error, labels)}</p>}
+          <dl className="account-details"><div><dt>{labels.account}</dt><dd dir="auto">{session.user?.username}</dd></div><div><dt>{labels.role}</dt><dd>{roleName}</dd></div></dl>
+          <p className="workspace-note">{labels.workspaceNote}</p>
+          <p className="field-hint mt-5">{labels.sessionNote}</p>
+          <button type="button" className="control mt-6 w-full" disabled={pending} onClick={() => { void auth.logout(); }}>{pending ? labels.working : labels.logout}</button>
+        </>
+      ) : (
+        <>
+          <span className="section-eyebrow">{labels.appName}</span>
+          <h2 className="card-title">{session.state === 'password_change' ? labels.changePasswordHeading : labels.loginHeading}</h2>
+          <p className="card-description">{session.state === 'password_change' ? labels.changePasswordDescription : labels.loginDescription}</p>
+          {notice && <p role="status" className="feedback feedback-success">{labels[notice]}</p>}
+          {error && <p role="alert" className="feedback feedback-error">{errorLabel(error, labels)}</p>}
+          {session.state === 'password_change'
+            ? <PasswordForm labels={labels} pending={pending} onSubmit={auth.changePassword} />
+            : <LoginForm labels={labels} pending={pending} onSubmit={auth.login} />}
+          {session.state === 'password_change'
+            ? <button type="button" className="control mt-4 w-full" disabled={pending} onClick={() => { void auth.logout(); }}>{labels.logout}</button>
+            : <p className="account-help">{labels.accountHelp}</p>}
+        </>
+      )}
+    </div>
+  );
+}
