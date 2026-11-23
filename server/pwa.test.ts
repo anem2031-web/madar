@@ -50,6 +50,18 @@ test('offline navigation falls back but preserves real HTTP denial or unavailabi
   expect(await pending).toBe(unavailable);
 });
 
+test('user-management navigation uses the public offline page without caching user data', async () => {
+  const w = worker();
+  let pending!: Promise<unknown>;
+  w.handlers.get('fetch')!({
+    request: { method: 'GET', mode: 'navigate', url: 'https://madar.example/users' },
+    respondWith: (promise: Promise<unknown>) => { pending = promise; },
+  });
+  expect(await pending).toBe('offline');
+  expect(w.cache.add).not.toHaveBeenCalled();
+  expect(w.cache.match).toHaveBeenCalledExactlyOnceWith('/offline.html');
+});
+
 test('install manifest uses valid generated PNGs in required sizes', () => {
   const manifest = JSON.parse(readFileSync('client/public/manifest.webmanifest', 'utf8'));
   expect(manifest.start_url).toBe('/');

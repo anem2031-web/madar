@@ -136,3 +136,31 @@ body {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .loading-ring { animation: none; } }
+
+@layer components {
+  .workspace-layout {
+    @apply my-5 min-w-0 overflow-hidden rounded-3xl border border-line bg-white shadow-[0_16px_70px_-35px_rgba(20,65,85,0.3)];
+  }
+  .workspace-nav { @apply mb-7 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-5; }
+  .users-content { @apply w-full min-w-0; }
+  .users-heading-row { @apply flex flex-wrap items-start justify-between gap-4; }
+  .users-add { @apply w-auto min-w-36 shrink-0; }
+  .users-editor { @apply mt-6 max-w-2xl rounded-2xl border border-line bg-slate-50 p-5 sm:p-6; }
+  .field select { @apply min-h-12 w-full min-w-0 rounded-xl border border-input-border bg-white px-3 text-base text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:bg-slate-50; }
+  .field select[aria-invalid=true] { border-color: var(--color-danger); }
+  .users-list-toolbar { @apply mb-4 mt-7 flex flex-wrap items-center justify-between gap-3; }
+  .users-table-wrapper { @apply max-w-full overflow-x-auto rounded-2xl border border-line; }
+  .users-table { @apply w-full min-w-[900px] border-collapse text-start text-sm; }
+  .users-table th, .users-table td { @apply border-b border-line px-4 py-4 text-start align-middle; }
+  .users-table thead th { @apply bg-slate-50 font-semibold text-muted; }
+  .users-table tbody th { @apply font-semibold; }
+  .users-table tbody tr:last-child th, .users-table tbody tr:last-child td { border-bottom: 0; }
+  .users-actions { @apply flex flex-wrap gap-2; }
+  .users-actions .control { @apply min-h-11 whitespace-nowrap px-3 text-xs; }
+  .status-badge { @apply inline-flex rounded-full border px-3 py-1 text-xs font-medium; }
+  .status-active { @apply border-[#c3e6d6] bg-[#e7f5ee] text-[#145e49]; }
+  .status-disabled { @apply border-line bg-slate-100 text-ink; }
+  .users-pagination { @apply mt-5 flex flex-wrap justify-between gap-3; }
+  .temporary-password-panel { @apply mt-6 rounded-2xl border border-[#c3e6d6] bg-[#e7f5ee] p-5 text-[#145e49]; }
+  .temporary-password { @apply block select-all break-all rounded-xl border border-[#c3e6d6] bg-white px-4 py-3 text-start font-mono text-lg font-semibold text-ink; }
+}

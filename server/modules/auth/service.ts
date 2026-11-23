@@ -189,7 +189,18 @@ export function createAuthService(store: AuthStore, options: { origin: string; s
       return { userId: current.user.id, scope: 'all_branches' as const };
     }).then(value => { if (!value) throw new AuthFault('AUTH_FORBIDDEN'); return value; });
   }
-  return { session, login, changePassword, logout, activity, requirePermission };
+  // Modules authorize again inside the same transaction that changes their data.
+  // This prevents role/session changes racing between a separate guard and the write.
+  async function authorizeInTransaction(tx: AuthTransaction, request: AuthRequest, permission: string, now = clock(), onAuthenticated?: (user: AuthUser) => void) {
+    if (request.origin && request.origin !== options.origin) throw new AuthFault('AUTH_FORBIDDEN');
+    const current = await read(tx, request, now);
+    if (!current?.user || current.session.stage !== 'authenticated') throw new AuthFault('AUTH_REQUIRED');
+    onAuthenticated?.(current.user);
+    if (!hasPermission(current.user, permission)) throw new AuthFault('AUTH_FORBIDDEN');
+    return current;
+  }
+  const securityKey = (value: string) => Buffer.from(mac(value), 'base64url');
+  return { session, login, changePassword, logout, activity, requirePermission, authorizeInTransaction, checkMutation, securityKey };
 }
 
 export type AuthService = ReturnType<typeof createAuthService>;

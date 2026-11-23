@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { messages } from '../../i18n/locale.ts';
 import type { Language } from '../../i18n/locale.ts';
 import { useAuth } from './useAuth.ts';
+import { navigate, usePathname } from '../../app/navigation.ts';
+import { UsersScreen } from '../users/UsersScreen.tsx';
+import { userMessages } from '../users/locale.ts';
+import { TemporaryPasswordPanel } from '../users/TemporaryPasswordPanel.tsx';
 
 type Labels = typeof messages.ar;
 
@@ -83,8 +87,45 @@ function LoginForm({ labels, pending, onSubmit }: {
 
 export function AuthScreen({ language }: { language: Language }) {
   const labels = messages[language];
+  const userLabels = userMessages[language];
+  const path = usePathname();
   const auth = useAuth();
+  const [selfResetResult, setSelfResetResult] = useState<{ username: string; password: string; path: string; expiresAt: number } | null>(null);
   const { session, loading, pending, error, notice } = auth;
+  useEffect(() => {
+    if (selfResetResult && session && session.state !== 'anonymous') setSelfResetResult(null);
+  }, [selfResetResult, session]);
+  useEffect(() => {
+    if (!selfResetResult) return;
+    const clear = () => setSelfResetResult(null);
+    const onVisibility = () => { if (document.visibilityState === 'hidden') clear(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('popstate', clear);
+    const timer = window.setTimeout(clear, Math.max(0, selfResetResult.expiresAt - Date.now()));
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('popstate', clear);
+      window.clearTimeout(timer);
+    };
+  }, [selfResetResult]);
+  const receiveSelfReset = (username: string, password: string) => {
+    const expiresAt = Date.parse(session?.expiresAt ?? '');
+    if (document.visibilityState === 'visible' && Number.isFinite(expiresAt) && expiresAt > Date.now()) {
+      setSelfResetResult({ username, password, path, expiresAt });
+    }
+    // Clear all account data and obtain only a fresh anonymous CSRF context.
+    auth.invalidateSession();
+    void auth.refresh();
+  };
+  if (selfResetResult && selfResetResult.path === path && (!session || session.state === 'anonymous')) return (
+    <div className="mx-auto w-full max-w-xl">
+      <TemporaryPasswordPanel username={selfResetResult.username} password={selfResetResult.password} labels={userLabels} signedOut onDismiss={() => {
+        setSelfResetResult(null);
+        navigate('/');
+        void auth.refresh();
+      }} />
+    </div>
+  );
   if (loading || (pending && !session)) return (
     <div className="state-panel" role="status" aria-live="polite">
       <span className="loading-ring" aria-hidden="true" /><h2 className="card-title">{pending ? labels.working : labels.checking}</h2><p className="text-muted">{labels.checkingDescription}</p>
@@ -99,6 +140,18 @@ export function AuthScreen({ language }: { language: Language }) {
   );
   const role = session.user?.roleCode;
   const roleName = role === 'system_admin' ? labels.adminRole : role === 'hr' ? labels.hrRole : labels.assignedRole;
+  const canManageUsers = session.state === 'authenticated' && session.user?.permissions.includes('users.manage');
+  if (session.state === 'authenticated' && path === '/users') return (
+    <div className="w-full min-w-0">
+      <nav className="workspace-nav" aria-label={labels.workspace}>
+        <button type="button" className="control" onClick={() => navigate('/')} disabled={pending}>{userLabels.back}</button>
+        <button type="button" className="control" onClick={() => { void auth.logout(); }} disabled={pending}>{pending ? labels.working : labels.logout}</button>
+      </nav>
+      {canManageUsers
+        ? <UsersScreen language={language} actorUsername={session.user!.username} onSessionInvalid={() => { auth.invalidateSession(); void auth.refresh(); }} onSelfResetResult={receiveSelfReset} foregroundActions={{ begin: auth.beginForeground, end: auth.endForeground }} />
+        : <p role="alert" className="feedback feedback-error">{userLabels.forbidden}</p>}
+    </div>
+  );
   return (
     <div className="auth-content">
       {session.state === 'authenticated' ? (
@@ -109,7 +162,8 @@ export function AuthScreen({ language }: { language: Language }) {
           {notice && <p role="status" className="feedback feedback-success">{labels[notice]}</p>}
           {error && <p role="alert" className="feedback feedback-error">{errorLabel(error, labels)}</p>}
           <dl className="account-details"><div><dt>{labels.account}</dt><dd dir="auto">{session.user?.username}</dd></div><div><dt>{labels.role}</dt><dd>{roleName}</dd></div></dl>
-          <p className="workspace-note">{labels.workspaceNote}</p>
+          <p className="workspace-note">{canManageUsers ? userLabels.adminWorkspace : labels.workspaceNote}</p>
+          {canManageUsers && <a href="/users" className="primary-button mt-5" onClick={event => { event.preventDefault(); navigate('/users'); }}>{userLabels.openUsers}</a>}
           <p className="field-hint mt-5">{labels.sessionNote}</p>
           <button type="button" className="control mt-6 w-full" disabled={pending} onClick={() => { void auth.logout(); }}>{pending ? labels.working : labels.logout}</button>
         </>

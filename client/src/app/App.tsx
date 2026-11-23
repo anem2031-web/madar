@@ -2,11 +2,13 @@ import { DirectionProvider } from '@radix-ui/react-direction';
 import { useEffect, useState } from 'react';
 import { applyLanguage, messages, readLanguage } from '../i18n/locale.ts';
 import { AuthScreen } from '../modules/auth/AuthScreen.tsx';
+import { usePathname } from './navigation.ts';
 
 export function App() {
   const [language, setLanguage] = useState(readLanguage);
   const labels = messages[language];
   const nextLanguage = language === 'ar' ? 'en' : 'ar';
+  const usersPage = usePathname() === '/users';
 
   useEffect(() => applyLanguage(language), [language]);
 
@@ -24,14 +26,14 @@ export function App() {
             {nextLanguage === 'en' ? 'English' : 'العربية'}
           </button>
         </header>
-        <main className="auth-layout">
-          <aside className="auth-intro" aria-labelledby="intro-heading">
+        <main className={usersPage ? 'workspace-layout' : 'auth-layout'}>
+          {!usersPage && <aside className="auth-intro" aria-labelledby="intro-heading">
             <span className="intro-eyebrow">{labels.workspace}</span>
             <h2 id="intro-heading" className="intro-heading">{labels.introHeading}</h2>
             <p className="intro-description">{labels.introDescription}</p>
             <div className="orbit-art" aria-hidden="true"><span /><i /><b /></div>
             <p className="intro-note"><span aria-hidden="true">◈</span> {labels.accessNote}</p>
-          </aside>
+          </aside>}
           <section className="auth-card" aria-label={labels.workspace}><AuthScreen language={language} /></section>
         </main>
         <footer className="app-footer">{labels.appName}<span aria-hidden="true"> · </span>{labels.accessNote}</footer>

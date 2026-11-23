@@ -32,12 +32,15 @@ export type AuthAudit = {
   actorUserId: string | null;
   actorRoleId: string | null;
   actorRoleCode: string | null;
-  module: 'auth';
+  module: 'auth' | 'users';
   action: string;
   entityId: string | null;
   requestId: string;
   result: 'success' | 'denied';
   reasonCode: string | null;
+  beforeValues?: Partial<{ roleId: string; accountStatus: string; mustChangePassword: boolean; authVersion: number }>;
+  afterValues?: Partial<{ roleId: string; accountStatus: string; mustChangePassword: boolean; authVersion: number }>;
+  metadata?: { count?: number };
 };
 
 export interface AuthTransaction {

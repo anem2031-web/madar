@@ -27,7 +27,7 @@ function readSession(row: typeof sessions.$inferSelect): AuthSession {
   };
 }
 
-function authTransaction(tx: DatabaseTransaction): AuthTransaction {
+export function authTransaction(tx: DatabaseTransaction): AuthTransaction {
   async function readUser(row: typeof users.$inferSelect | undefined): Promise<AuthUser | null> {
     if (!row) return null;
     const [role] = await tx.select().from(roles).where(eq(roles.id, row.roleId)).limit(1).for('update');

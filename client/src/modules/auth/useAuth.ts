@@ -32,6 +32,8 @@ export function useAuth() {
   const [notice, setNotice] = useState<'signedOut' | 'passwordChanged' | null>(null);
   const generation = useRef(0);
   const busy = useRef(false);
+  const foreground = useRef(false);
+  const refreshQueued = useRef(false);
   const reading = useRef(false);
   const readGeneration = useRef(0);
   const readAgain = useRef(false);
@@ -46,6 +48,7 @@ export function useAuth() {
   }, []);
 
   const refresh = useCallback(async (): Promise<void> => {
+    if (foreground.current) { refreshQueued.current = true; return; }
     if (busy.current) return;
     if (reading.current) {
       if (readGeneration.current !== generation.current) readAgain.current = true;
@@ -72,6 +75,31 @@ export function useAuth() {
     }
   }, [accept]);
 
+  const invalidateSession = useCallback(() => {
+    ++generation.current;
+    accept(null);
+    setLoading(false);
+    setError(null);
+    setNotice(null);
+  }, [accept]);
+
+  const beginForeground = useCallback(() => {
+    if (busy.current || reading.current || foreground.current || sessionRef.current?.state !== 'authenticated') return false;
+    foreground.current = true;
+    ++generation.current;
+    setPending(true);
+    return true;
+  }, []);
+
+  const endForeground = useCallback((options?: { skipQueuedRefresh?: boolean }) => {
+    if (!foreground.current) return;
+    foreground.current = false;
+    setPending(false);
+    const queued = refreshQueued.current;
+    refreshQueued.current = false;
+    if (queued && !options?.skipQueuedRefresh && document.visibilityState === 'visible') void refresh();
+  }, [refresh]);
+
   useEffect(() => {
     mounted.current = true;
     void refresh();
@@ -80,7 +108,7 @@ export function useAuth() {
         ++generation.current;
         sessionRef.current = null;
         setSession(null);
-        if (!busy.current) setCsrfToken();
+        if (!busy.current && !foreground.current) setCsrfToken();
         setLoading(true);
       } else { void refresh(); }
     };
@@ -99,7 +127,7 @@ export function useAuth() {
   }, [accept, refresh]);
 
   const mutate = useCallback(async (operation: (signal: AbortSignal) => Promise<SessionView>, kind: 'login' | 'password' | 'logout') => {
-    if (busy.current) return;
+    if (busy.current || foreground.current) return;
     busy.current = true;
     ++generation.current;
     setPending(true);
@@ -136,15 +164,20 @@ export function useAuth() {
   useEffect(() => {
     if (!session?.expiresAt || session.state === 'anonymous') return;
     const delay = Math.max(0, Date.parse(session.expiresAt) - Date.now());
-    const timer = window.setTimeout(() => { void refresh(); }, Math.min(delay, 2_147_483_647));
+    const timer = window.setTimeout(() => {
+      if (foreground.current) {
+        invalidateSession();
+        refreshQueued.current = true;
+      } else { void refresh(); }
+    }, Math.min(delay, 2_147_483_647));
     return () => window.clearTimeout(timer);
-  }, [session, refresh]);
+  }, [session, refresh, invalidateSession]);
 
   useEffect(() => {
     if (session?.state !== 'authenticated') return;
     let reporting = false;
     const reportActivity = (event: Event) => {
-      if (!event.isTrusted || busy.current || reading.current || reporting || document.visibilityState !== 'visible' || Date.now() < activityDue.current) return;
+      if (!event.isTrusted || !sessionRef.current || sessionRef.current.state !== 'authenticated' || foreground.current || busy.current || reading.current || reporting || document.visibilityState !== 'visible' || Date.now() < activityDue.current) return;
       reporting = true;
       activityDue.current = Date.now() + 60_000;
       const current = generation.current;
@@ -163,7 +196,7 @@ export function useAuth() {
   }, [session?.state, accept]);
 
   return {
-    session, loading, pending, error, notice, refresh,
+    session, loading, pending, error, notice, refresh, invalidateSession, beginForeground, endForeground,
     login: (username: string, password: string) => mutate(signal => trpc.auth.login.mutate({ username, password }, { signal }), 'login'),
     changePassword: (currentPassword: string, newPassword: string) => mutate(signal => trpc.auth.changePassword.mutate({ currentPassword, newPassword }, { signal }), 'password'),
     logout: () => mutate(signal => trpc.auth.logout.mutate(undefined, { signal }), 'logout'),

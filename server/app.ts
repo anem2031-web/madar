@@ -5,19 +5,23 @@ import type { ErrorRequestHandler } from 'express';
 import { appRouter } from './trpc/router.ts';
 import { createAuthService } from './modules/auth/service.ts';
 import type { AuthStore } from './modules/auth/store.ts';
+import { createUsersService } from './modules/users/service.ts';
+import type { UsersStore } from './modules/users/store.ts';
 
 type AppOptions = {
   clientDirectory?: string;
   pingDatabase?: () => Promise<void>;
   authStore?: AuthStore;
   authConfig?: { origin: string; secret: string };
+  usersStore?: UsersStore;
 };
 
-export function createApp({ clientDirectory, pingDatabase, authStore, authConfig }: AppOptions = {}) {
+export function createApp({ clientDirectory, pingDatabase, authStore, authConfig, usersStore }: AppOptions = {}) {
   const app = express();
   app.disable('x-powered-by');
   const secureCookies = authConfig?.origin.startsWith('https://') ?? false;
   const auth = authStore && authConfig ? createAuthService(authStore, authConfig) : undefined;
+  const users = usersStore && auth ? createUsersService(usersStore, auth) : undefined;
   app.use((_request, response, next) => {
     response.set('X-Content-Type-Options', 'nosniff');
     next();
@@ -41,7 +45,7 @@ export function createApp({ clientDirectory, pingDatabase, authStore, authConfig
     response.set('Cache-Control', 'no-store');
     next();
   });
-  app.use('/api/trpc', express.json({ limit: '8kb' }), createExpressMiddleware({ router: appRouter, allowBatching: false, createContext: ({ req, res }) => ({ req, res, auth, secureCookies }) }));
+  app.use('/api/trpc', express.json({ limit: '8kb' }), createExpressMiddleware({ router: appRouter, allowBatching: false, createContext: ({ req, res }) => ({ req, res, auth, users, secureCookies }) }));
 
   if (clientDirectory) {
     for (const path of ['/manifest.webmanifest', '/sw.js', '/offline.html']) {
@@ -57,7 +61,7 @@ export function createApp({ clientDirectory, pingDatabase, authStore, authConfig
       maxAge: '1y',
       index: false,
     }));
-    app.get('/', (_request, response) => {
+    app.get(['/', '/users'], (_request, response) => {
       response.set('Cache-Control', 'no-cache');
       response.sendFile(join(clientDirectory, 'index.html'), { cacheControl: false });
     });
