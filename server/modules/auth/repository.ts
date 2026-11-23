@@ -91,9 +91,11 @@ export function authTransaction(tx: DatabaseTransaction): AuthTransaction {
           .onDuplicateKeyUpdate({ set: { counterKey: sql`${authThrottles.counterKey}` } });
         const [row] = await tx.select().from(authThrottles).where(eq(authThrottles.counterKey, key)).limit(1).for('update');
         if (!row) throw new Error('Authentication counter unavailable.');
-        const reset = now.getTime() >= readUtc(row.expiresAt).getTime();
+        // Apply a shorter policy to existing windows without extending an earlier expiry.
+        const effectiveExpiry = new Date(Math.min(readUtc(row.expiresAt).getTime(), readUtc(row.windowStartedAt).getTime() + windowMs));
+        const reset = now.getTime() >= effectiveExpiry.getTime();
         const attempts = reset ? 1 : Math.min(row.attempts + 1, 4_294_967_295);
-        const expires = reset ? new Date(now.getTime() + windowMs) : readUtc(row.expiresAt);
+        const expires = reset ? new Date(now.getTime() + windowMs) : effectiveExpiry;
         const blocked = attempts > limit;
         await tx.update(authThrottles).set({ attempts, updatedAt: sqlUtc(now),
           windowStartedAt: reset ? sqlUtc(now) : row.windowStartedAt,

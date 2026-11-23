@@ -27,8 +27,9 @@ function errorText(error: string, labels: UserLabels) {
   return labels[map[error] ?? 'requestFailed'];
 }
 
-function AccountForm({ selection, roles, labels, pending, disabled, onSubmit, onCancel, selfReset }: {
+function AccountForm({ selection, roles, labels, pending, disabled, actorUsername, onSubmit, onCancel, selfReset }: {
   selection: Selection; roles: ManagedRole[]; labels: UserLabels; pending: boolean;
+  actorUsername: string;
   onSubmit: (username: string, roleId: string, password: string) => Promise<boolean>;
   onCancel: () => void;
   selfReset: boolean;
@@ -69,7 +70,8 @@ function AccountForm({ selection, roles, labels, pending, disabled, onSubmit, on
         <fieldset className="contents" disabled={disabled}>
           {selection.kind === 'create' && <label className="field" htmlFor="managed-username"><span>{labels.username}</span><input id="managed-username" name="managed-username" dir="ltr" autoComplete="off" autoCapitalize="none" spellCheck={false} value={username} required onChange={event => { setUsername(event.target.value); setInvalid(false); }} aria-invalid={invalid || undefined} aria-describedby={invalid ? 'managed-form-error' : undefined} /></label>}
           {(selection.kind === 'create' || selection.kind === 'role') && <label className="field" htmlFor="managed-role"><span>{labels.role}</span><select id="managed-role" value={roleId} required onChange={event => { setRoleId(event.target.value); setInvalid(false); }} aria-invalid={invalid || undefined} aria-describedby={invalid ? 'managed-form-error' : undefined}><option value="">{labels.chooseRole}</option>{roles.map(role => <option key={role.id} value={role.id}>{roleName(role, labels)}</option>)}</select></label>}
-          <label className="field" htmlFor="manager-current-password"><span>{labels.currentPassword}</span><input id="manager-current-password" name="manager-current-password" dir="ltr" type={visible ? 'text' : 'password'} autoComplete="current-password" value={password} required onChange={event => { setPassword(event.target.value); setInvalid(false); }} aria-describedby={invalid ? 'reauth-help managed-form-error' : 'reauth-help'} aria-invalid={invalid || undefined} /></label>
+          <label className="field" htmlFor="manager-username"><span>{labels.confirmationAccount}</span><input id="manager-username" name="manager-username" dir="ltr" autoComplete="section-manager username" value={actorUsername} readOnly aria-describedby="reauth-help" /></label>
+          <label className="field" htmlFor="manager-current-password"><span>{labels.currentPassword}</span><input id="manager-current-password" name="manager-current-password" dir="ltr" type={visible ? 'text' : 'password'} autoComplete="section-manager current-password" value={password} required onChange={event => { setPassword(event.target.value); setInvalid(false); }} aria-describedby={invalid ? 'reauth-help managed-form-error' : 'reauth-help'} aria-invalid={invalid || undefined} /></label>
           <p id="reauth-help" className="field-hint">{labels.reauthHelp}</p>
           <label className="password-toggle"><input type="checkbox" checked={visible} onChange={event => setVisible(event.target.checked)} />{visible ? labels.hidePassword : labels.showPassword}</label>
           {invalid && <p id="managed-form-error" role="alert" className="feedback feedback-error">{labels.invalidInput}</p>}
@@ -114,7 +116,7 @@ export function UsersScreen({ language, actorUsername, verificationPending, onSe
       {notice && <p role="status" className="feedback feedback-success">{noticeLabel[notice]}</p>}
       {error && <p role="alert" className="feedback feedback-error">{errorText(error, labels)}</p>}
       {secret && <TemporaryPasswordPanel username={secret.username} password={secret.password} labels={labels} onDismiss={accounts.dismissSecret} />}
-      {selection && <AccountForm key={selection.kind + (selection.kind === 'create' ? '' : selection.user.id)} selection={selection} roles={roles} labels={labels} pending={pending} disabled={blocked} onSubmit={submit} onCancel={() => setSelection(null)} selfReset={selection.kind === 'reset' && selection.user.username === actorUsername} />}
+      {selection && <AccountForm key={selection.kind + (selection.kind === 'create' ? '' : selection.user.id)} selection={selection} roles={roles} labels={labels} pending={pending} disabled={blocked} actorUsername={actorUsername} onSubmit={submit} onCancel={() => setSelection(null)} selfReset={selection.kind === 'reset' && selection.user.username === actorUsername} />}
       <p className="mt-5 text-sm text-muted">{labels.selfActionsNote}</p>
       <div className="users-list-toolbar"><button type="button" className="control" disabled={blocked || loading} onClick={() => { setSelection(null); accounts.refresh(); }}>{labels.refresh}</button><p className="text-sm text-muted">{labels.page} {accounts.page.toLocaleString(language)}</p></div>
       {loading ? <p role="status" className="py-8 text-center text-muted">{labels.loading}</p> : users.length === 0 ? <p className="py-8 text-center text-muted">{labels.empty}</p> : (

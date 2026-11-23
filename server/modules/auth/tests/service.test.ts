@@ -95,6 +95,93 @@ test('persistent account throttling survives construction of another service ins
   await expect(second.login(f.request, { username: 'admin', password })).rejects.toMatchObject({ reason: 'AUTH_RATE_LIMITED' });
 });
 
+test('account login suspension ends exactly at two minutes and repeated denials do not extend it', async () => {
+  const f = fixture(); f.accept(await f.auth.session(f.request));
+  const started = Date.parse('2026-11-23T09:00:00Z');
+  for (let i = 0; i < 5; i++) {
+    await expect(f.auth.login(f.request, { username: 'ADMIN', password: 'wrong' }))
+      .rejects.toMatchObject({ reason: 'AUTH_INVALID_CREDENTIALS' });
+  }
+  for (const elapsed of [0, 60_000, 119_999]) {
+    f.setTime(started + elapsed);
+    await expect(f.auth.login(f.request, { username: 'admin', password }))
+      .rejects.toMatchObject({ reason: 'AUTH_RATE_LIMITED' });
+    expect(f.store.events.at(-1)).toMatchObject({ action: 'auth.login', result: 'denied',
+      reasonCode: 'rate_limited', actorUserId: null, actorRoleId: null });
+  }
+  expect([...f.store.sessions.values()].every(value => value.stage === 'preauth')).toBe(true);
+  f.setTime(started + 120_000);
+  expect(f.accept(await f.auth.login(f.request, { username: 'admin', password })).view.state).toBe('authenticated');
+  expect(f.store.events.at(-1)).toMatchObject({ action: 'auth.login', result: 'success', actorUserId: f.user.id });
+  expect(f.store.users.get(f.user.id)?.authVersion).toBe(1);
+});
+
+test('source login limit remains thirty and resets at the two-minute boundary independently of account limit', async () => {
+  const f = fixture(); f.accept(await f.auth.session(f.request));
+  const started = new Date('2026-11-23T09:00:00Z');
+  await expect(f.auth.login(f.request, { username: 'unknown-account', password: 'wrong' }))
+    .rejects.toMatchObject({ reason: 'AUTH_INVALID_CREDENTIALS' });
+  // Preserve the window created by a real login, without thirty expensive password derivations.
+  await f.store.transaction(async tx => {
+    for (let i = 0; i < 29; i++) {
+      expect(await tx.consumeThrottle([f.auth.securityKey(`source:${f.request.peer}`)], started, 30, 120_000)).toBe(true);
+    }
+  });
+  f.setTime(started.getTime() + 119_999);
+  await expect(f.auth.login(f.request, { username: 'admin', password }))
+    .rejects.toMatchObject({ reason: 'AUTH_RATE_LIMITED' });
+  expect(f.store.events.at(-1)).toMatchObject({ action: 'auth.login', result: 'denied', reasonCode: 'rate_limited' });
+  f.setTime(started.getTime() + 120_000);
+  expect(f.accept(await f.auth.login(f.request, { username: 'admin', password })).view.state).toBe('authenticated');
+});
+
+test('password-change throttling still lasts fifteen minutes rather than the shorter login window', async () => {
+  const f = fixture(true); await f.login();
+  const started = Date.parse('2026-11-23T09:00:00Z');
+  const replacement = 'A new private password 2026';
+  for (let i = 0; i < 5; i++) {
+    await expect(f.auth.changePassword(f.request, { currentPassword: 'wrong', newPassword: replacement }))
+      .rejects.toMatchObject({ reason: 'AUTH_INVALID_CREDENTIALS' });
+  }
+  for (const elapsed of [120_000, 899_999]) {
+    f.setTime(started + elapsed);
+    await expect(f.auth.changePassword(f.request, { currentPassword: password, newPassword: replacement }))
+      .rejects.toMatchObject({ reason: 'AUTH_RATE_LIMITED' });
+  }
+  expect(f.store.users.get(f.user.id)?.mustChangePassword).toBe(true);
+  f.setTime(started + 900_000);
+  expect(f.accept(await f.auth.changePassword(f.request, { currentPassword: password, newPassword: replacement })).view.state)
+    .toBe('authenticated');
+});
+
+test('preauthentication and CSRF audit limits retain their independent fifteen-minute windows', async () => {
+  const f = fixture();
+  const started = Date.parse('2026-11-23T09:00:00Z');
+  for (let i = 0; i < 30; i++) f.accept(await f.auth.session({ ...f.request, token: undefined }));
+  for (const elapsed of [0, 120_000, 899_999]) {
+    f.setTime(started + elapsed);
+    await expect(f.auth.session({ ...f.request, token: undefined })).rejects.toMatchObject({ reason: 'AUTH_RATE_LIMITED' });
+  }
+  f.setTime(started + 900_000);
+  expect((await f.auth.session({ ...f.request, token: undefined })).view.state).toBe('anonymous');
+  const csrf = fixture(); csrf.accept(await csrf.auth.session(csrf.request));
+  for (let i = 0; i < 30; i++) {
+    await expect(csrf.auth.login({ ...csrf.request, csrf: 'wrong' }, { username: 'admin', password }))
+      .rejects.toMatchObject({ reason: 'AUTH_CSRF' });
+  }
+  expect(csrf.store.events.filter(value => value.action === 'auth.csrf')).toHaveLength(30);
+  for (const elapsed of [120_000, 899_999]) {
+    csrf.setTime(started + elapsed);
+    await expect(csrf.auth.login({ ...csrf.request, csrf: 'wrong' }, { username: 'admin', password }))
+      .rejects.toMatchObject({ reason: 'AUTH_CSRF' });
+    expect(csrf.store.events.filter(value => value.action === 'auth.csrf')).toHaveLength(30);
+  }
+  csrf.setTime(started + 900_000);
+  await expect(csrf.auth.login({ ...csrf.request, csrf: 'wrong' }, { username: 'admin', password }))
+    .rejects.toMatchObject({ reason: 'AUTH_CSRF' });
+  expect(csrf.store.events.filter(value => value.action === 'auth.csrf')).toHaveLength(31);
+});
+
 test('audit does not contain entered password, cookie or CSRF values', async () => {
   const f = fixture(); await f.login();
   const events = JSON.stringify(f.store.events);

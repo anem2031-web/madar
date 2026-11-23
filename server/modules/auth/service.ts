@@ -7,6 +7,7 @@ import type { AuthAudit, AuthSession, AuthStore, AuthTransaction, AuthUser } fro
 const idleMs = 30 * 60_000;
 const absoluteMs = 8 * 60 * 60_000;
 const throttleMs = 15 * 60_000;
+const loginThrottleMs = 2 * 60_000;
 
 export type AuthRequest = { token?: string; csrf?: string; origin?: string; peer: string; requestId: string };
 export type SessionView = {
@@ -98,8 +99,8 @@ export function createAuthService(store: AuthStore, options: { origin: string; s
     const allowed = await store.transaction(async tx => {
       const current = await read(tx, request, now);
       if (!current || current.session.stage !== 'preauth') throw new AuthFault('AUTH_REQUIRED');
-      const sourceAllowed = await tx.consumeThrottle([Buffer.from(mac(`source:${request.peer}`), 'base64url')], now, 30, throttleMs);
-      const accountAllowed = await tx.consumeThrottle([Buffer.from(mac(`account:${username}`), 'base64url')], now, 5, throttleMs);
+      const sourceAllowed = await tx.consumeThrottle([Buffer.from(mac(`source:${request.peer}`), 'base64url')], now, 30, loginThrottleMs);
+      const accountAllowed = await tx.consumeThrottle([Buffer.from(mac(`account:${username}`), 'base64url')], now, 5, loginThrottleMs);
       if (!sourceAllowed || !accountAllowed) await tx.appendAudit(event(request, now, 'auth.login', null, 'denied', 'rate_limited'));
       return sourceAllowed && accountAllowed;
     });

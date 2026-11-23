@@ -8,7 +8,7 @@ export function usePasswordPrivacy(clear: () => void) {
   useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState !== 'hidden') return;
-      form.current?.querySelectorAll<HTMLInputElement>('input[type="password"], input[autocomplete="current-password"], input[autocomplete="new-password"]')
+      form.current?.querySelectorAll<HTMLInputElement>('input[type="password"], input[autocomplete~="current-password"], input[autocomplete~="new-password"]')
         .forEach(input => { input.value = ''; });
       clearRef.current();
     };

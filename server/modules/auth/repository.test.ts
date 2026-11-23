@@ -123,4 +123,32 @@ describe('authentication repository driver contract', () => {
     expect(update?.params).toContain(null);
     expect(update?.params).toContain('2026-11-23 12:30:00.000');
   });
+
+  test.each([
+    { label: 'legacy fifteen-minute row before two minutes', storedExpiry: '2026-11-23 12:15:00.000',
+      now: '2026-11-23T12:01:59.999Z', allowed: false, count: 6, expiry: '2026-11-23 12:02:00.000' },
+    { label: 'legacy fifteen-minute row exactly at two minutes', storedExpiry: '2026-11-23 12:15:00.000',
+      now: '2026-11-23T12:02:00.000Z', allowed: true, count: 1, expiry: '2026-11-23 12:04:00.000' },
+    { label: 'shorter stored window before its earlier expiry', storedExpiry: '2026-11-23 12:01:00.000',
+      now: '2026-11-23T12:00:59.999Z', allowed: false, count: 6, expiry: '2026-11-23 12:01:00.000' },
+    { label: 'shorter stored window exactly at its earlier expiry', storedExpiry: '2026-11-23 12:01:00.000',
+      now: '2026-11-23T12:01:00.000Z', allowed: true, count: 1, expiry: '2026-11-23 12:03:00.000' },
+  ])('$label honors the current duration without prolonging an existing block', async ({ storedExpiry, now, allowed, count, expiry }) => {
+    const key = Buffer.alloc(32, 7);
+    const { connection, calls } = recordingConnection(({ sql }) => {
+      if (sql.startsWith('select') && sql.includes('from `auth_throttles`')) return [[key,
+        '2026-11-23 12:00:00.000', storedExpiry, '2026-11-23 12:00:00.000', 5, storedExpiry]];
+      return writeResult;
+    });
+    await expect(createAuthStore(connection).transaction(tx => tx.consumeThrottle([key], new Date(now), 5, 120_000)))
+      .resolves.toBe(allowed);
+    const update = calls.find(c => c.sql.startsWith('update `auth_throttles`'));
+    expect(update?.params).toContain(count);
+    expect(update?.params.filter(value => value === expiry)).toHaveLength(allowed ? 1 : 2);
+    if (allowed) expect(update?.params).toContain(null);
+    if (storedExpiry > expiry) expect(update?.params).not.toContain(storedExpiry);
+    expect(update?.params.at(-1)).toEqual(key);
+    expect(calls.find(c => c.sql.includes('from `auth_throttles`'))?.sql).toMatch(/for update$/);
+    expect(calls.at(-1)?.sql).toBe('commit');
+  });
 });

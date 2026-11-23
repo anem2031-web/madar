@@ -26,6 +26,7 @@ export default {
   changeRole: 'Change role',
   disable: 'Disable',
   resetPassword: 'Reset password',
+  confirmationAccount: 'Account confirming this action',
   currentPassword: 'Your current password',
   reauthHelp: 'Enter your own current account password to confirm this action. It is cleared from the form on submission.',
   createHelp: 'A random temporary password is generated. The account owner must change it at first sign-in.',
