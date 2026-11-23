@@ -8,7 +8,8 @@ export function App() {
   const [language, setLanguage] = useState(readLanguage);
   const labels = messages[language];
   const nextLanguage = language === 'ar' ? 'en' : 'ar';
-  const usersPage = usePathname() === '/users';
+  const pathname = usePathname();
+  const workspacePage = pathname === '/users' || pathname === '/permissions';
 
   useEffect(() => applyLanguage(language), [language]);
 
@@ -26,8 +27,8 @@ export function App() {
             {nextLanguage === 'en' ? 'English' : 'العربية'}
           </button>
         </header>
-        <main className={usersPage ? 'workspace-layout' : 'auth-layout'}>
-          {!usersPage && <aside className="auth-intro" aria-labelledby="intro-heading">
+        <main className={workspacePage ? 'workspace-layout' : 'auth-layout'}>
+          {!workspacePage && <aside className="auth-intro" aria-labelledby="intro-heading">
             <span className="intro-eyebrow">{labels.workspace}</span>
             <h2 id="intro-heading" className="intro-heading">{labels.introHeading}</h2>
             <p className="intro-description">{labels.introDescription}</p>

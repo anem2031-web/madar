@@ -8,6 +8,8 @@ import { UsersScreen } from '../users/UsersScreen.tsx';
 import { userMessages } from '../users/locale.ts';
 import { TemporaryPasswordPanel } from '../users/TemporaryPasswordPanel.tsx';
 import { usePasswordPrivacy } from './password-privacy.ts';
+import { PermissionsScreen } from '../permission-overrides/PermissionsScreen.tsx';
+import { permissionMessages } from '../permission-overrides/locale.ts';
 
 type Labels = typeof messages.ar;
 
@@ -93,6 +95,7 @@ function LoginForm({ labels, pending, disabled, onSubmit }: {
 export function AuthScreen({ language }: { language: Language }) {
   const labels = messages[language];
   const userLabels = userMessages[language];
+  const permissionLabels = permissionMessages[language];
   const path = usePathname();
   const auth = useAuth();
   const [selfResetResult, setSelfResetResult] = useState<{ username: string; password: string; path: string; expiresAt: number } | null>(null);
@@ -148,6 +151,19 @@ export function AuthScreen({ language }: { language: Language }) {
   const role = session.user?.roleCode;
   const roleName = role === 'system_admin' ? labels.adminRole : role === 'hr' ? labels.hrRole : labels.assignedRole;
   const canManageUsers = session.state === 'authenticated' && session.user?.permissions.includes('users.manage');
+  const canManageOverrides = session.state === 'authenticated' && session.user?.permissions.includes('permissions.manage_overrides');
+  if (session.state === 'authenticated' && path === '/permissions') return (
+    <div className="w-full min-w-0">
+      <nav className="workspace-nav" aria-label={labels.workspace}>
+        <button type="button" className="control" onClick={() => navigate('/')} disabled={blocked}>{userLabels.back}</button>
+        <button type="button" className="control" onClick={() => { void auth.logout(); }} disabled={blocked}>{pending ? labels.working : labels.logout}</button>
+      </nav>
+      {verificationStatus}
+      {canManageOverrides
+        ? <PermissionsScreen key={session.user!.username} language={language} actorUsername={session.user!.username} verificationPending={verifying} onSessionInvalid={() => { auth.invalidateSession(); void auth.refresh(); }} foregroundActions={{ begin: auth.beginForeground, end: auth.endForeground }} />
+        : <p role="alert" className="feedback feedback-error">{permissionLabels.forbidden}</p>}
+    </div>
+  );
   if (session.state === 'authenticated' && path === '/users') return (
     <div className="w-full min-w-0">
       <nav className="workspace-nav" aria-label={labels.workspace}>
@@ -173,6 +189,7 @@ export function AuthScreen({ language }: { language: Language }) {
           <dl className="account-details"><div><dt>{labels.account}</dt><dd dir="auto">{session.user?.username}</dd></div><div><dt>{labels.role}</dt><dd>{roleName}</dd></div></dl>
           <p className="workspace-note">{canManageUsers ? userLabels.adminWorkspace : labels.workspaceNote}</p>
           {canManageUsers && <a href="/users" className="primary-button mt-5" aria-disabled={blocked || undefined} onClick={event => { event.preventDefault(); if (!blocked) navigate('/users'); }}>{userLabels.openUsers}</a>}
+          {canManageOverrides && <a href="/permissions" className="primary-button mt-3" aria-disabled={blocked || undefined} onClick={event => { event.preventDefault(); if (!blocked) navigate('/permissions'); }}>{permissionLabels.openPermissions}</a>}
           <p className="field-hint mt-5">{labels.sessionNote}</p>
           <button type="button" className="control mt-6 w-full" disabled={blocked} onClick={() => { void auth.logout(); }}>{pending ? labels.working : labels.logout}</button>
         </>

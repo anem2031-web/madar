@@ -50,11 +50,11 @@ test('offline navigation falls back but preserves real HTTP denial or unavailabi
   expect(await pending).toBe(unavailable);
 });
 
-test('user-management navigation uses the public offline page without caching user data', async () => {
+test.each(['/users', '/permissions'])('protected navigation %s uses only the public offline page', async path => {
   const w = worker();
   let pending!: Promise<unknown>;
   w.handlers.get('fetch')!({
-    request: { method: 'GET', mode: 'navigate', url: 'https://madar.example/users' },
+    request: { method: 'GET', mode: 'navigate', url: `https://madar.example${path}` },
     respondWith: (promise: Promise<unknown>) => { pending = promise; },
   });
   expect(await pending).toBe('offline');

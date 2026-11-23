@@ -1,4 +1,5 @@
 import { once } from 'node:events';
+import { resolve } from 'node:path';
 import { createTRPCClient, httpLink } from '@trpc/client';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { createApp } from './app.ts';
@@ -10,6 +11,7 @@ let databaseReady = true;
 
 beforeAll(async () => {
   listener = createApp({
+    clientDirectory: resolve('client'),
     pingDatabase: async () => {
       if (!databaseReady) throw new Error('sensitive database detail');
     },
@@ -25,6 +27,17 @@ afterAll(async () => {
   const closed = once(listener, 'close');
   listener.close();
   await closed;
+});
+
+test('permissions deep link serves the public shell while APIs and unknown routes retain their own responses', async () => {
+  const page = await fetch(`${origin}/permissions`);
+  expect(page.status).toBe(200);
+  expect(page.headers.get('content-type')).toContain('text/html');
+  expect(page.headers.get('cache-control')).toBe('no-cache');
+  expect(await page.text()).toContain('<div id="root"></div>');
+  const unknown = await fetch(`${origin}/not-a-page`);
+  expect(unknown.status).toBe(404);
+  expect(await unknown.json()).toEqual({ code: 'NOT_FOUND' });
 });
 
 test('does not provide a simulated login when authentication storage is not configured', async () => {

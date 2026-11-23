@@ -7,6 +7,8 @@ import { createAuthService } from './modules/auth/service.ts';
 import type { AuthStore } from './modules/auth/store.ts';
 import { createUsersService } from './modules/users/service.ts';
 import type { UsersStore } from './modules/users/store.ts';
+import { createPermissionOverridesService } from './modules/permission-overrides/service.ts';
+import type { PermissionOverridesStore } from './modules/permission-overrides/store.ts';
 
 type AppOptions = {
   clientDirectory?: string;
@@ -14,14 +16,16 @@ type AppOptions = {
   authStore?: AuthStore;
   authConfig?: { origin: string; secret: string };
   usersStore?: UsersStore;
+  permissionOverridesStore?: PermissionOverridesStore;
 };
 
-export function createApp({ clientDirectory, pingDatabase, authStore, authConfig, usersStore }: AppOptions = {}) {
+export function createApp({ clientDirectory, pingDatabase, authStore, authConfig, usersStore, permissionOverridesStore }: AppOptions = {}) {
   const app = express();
   app.disable('x-powered-by');
   const secureCookies = authConfig?.origin.startsWith('https://') ?? false;
   const auth = authStore && authConfig ? createAuthService(authStore, authConfig) : undefined;
   const users = usersStore && auth ? createUsersService(usersStore, auth) : undefined;
+  const permissionOverrides = permissionOverridesStore && auth ? createPermissionOverridesService(permissionOverridesStore, auth) : undefined;
   app.use((_request, response, next) => {
     response.set('X-Content-Type-Options', 'nosniff');
     next();
@@ -45,7 +49,7 @@ export function createApp({ clientDirectory, pingDatabase, authStore, authConfig
     response.set('Cache-Control', 'no-store');
     next();
   });
-  app.use('/api/trpc', express.json({ limit: '8kb' }), createExpressMiddleware({ router: appRouter, allowBatching: false, createContext: ({ req, res }) => ({ req, res, auth, users, secureCookies }) }));
+  app.use('/api/trpc', express.json({ limit: '8kb' }), createExpressMiddleware({ router: appRouter, allowBatching: false, createContext: ({ req, res }) => ({ req, res, auth, users, permissionOverrides, secureCookies }) }));
 
   if (clientDirectory) {
     for (const path of ['/manifest.webmanifest', '/sw.js', '/offline.html']) {
@@ -61,7 +65,7 @@ export function createApp({ clientDirectory, pingDatabase, authStore, authConfig
       maxAge: '1y',
       index: false,
     }));
-    app.get(['/', '/users'], (_request, response) => {
+    app.get(['/', '/users', '/permissions'], (_request, response) => {
       response.set('Cache-Control', 'no-cache');
       response.sendFile(join(clientDirectory, 'index.html'), { cacheControl: false });
     });

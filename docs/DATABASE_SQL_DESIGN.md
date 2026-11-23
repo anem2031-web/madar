@@ -87,7 +87,7 @@
 | roles | id: ID؛ code: VARCHAR(64) ascii_bin؛ name: VARCHAR(150)؛ version: VERSION؛ created_at وupdated_at: TIME | PK id وUNIQUE code؛ البداية system_admin وhr وفق المنح المعتمدة |
 | permissions | code: VARCHAR(96) ascii_bin | PK code؛ مفاتيح الإجراءات العشرة الحالية في السياسة، لا مفتاح عشوائي ينشئ وظيفة |
 | role_permissions | role_id: ID؛ permission_code: VARCHAR(96) ascii_bin | PK مركب؛ وجود الصف منح للدور، وغيابه لا يمنح؛ مراجع للدور ومفتاح الصلاحية |
-| user_permission_overrides | user_id: ID؛ permission_code: VARCHAR(96) ascii_bin؛ effect: VARCHAR(5) ascii_bin؛ updated_at: TIME | PK مركب؛ effect إما allow أو deny؛ حذف التخصيص يعيد الوراثة، ولا يساوي deny |
+| user_permission_overrides | user_id: ID؛ permission_code: VARCHAR(96) ascii_bin؛ effect: VARCHAR(5) ascii_bin؛ updated_at: TIME | PK مركب؛ effect إما grant أو deny بما يطابق الحارس المنفذ؛ حذف التخصيص يعيد الوراثة، ولا يساوي deny |
 
 users.role_id يحدد دور الحساب. لا جداول مجموعات أو صلاحيات لكل حقل أو تخصيص فرع لم يطلب. كل تغيير تخصيص يزيد users.auth_version، وكل تغيير منح دور يزيد roles.version. قبل الطلب المحمي تُقرأ السياسة الحالية؛ لا تحمل الجلسة نسخة من المنح تعد مصدر الحقيقة. لا تجاوز لمدير النظام، ولا يحذف التطبيق دورًا مستخدمًا في حساب. منع القفل الإداري الكامل أو حذف الحسابات سياسة لم تحسم؛ لا تضف تجاوزًا سريًا لمعالجتها.
 
