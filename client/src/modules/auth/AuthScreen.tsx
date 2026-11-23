@@ -7,6 +7,7 @@ import { navigate, usePathname } from '../../app/navigation.ts';
 import { UsersScreen } from '../users/UsersScreen.tsx';
 import { userMessages } from '../users/locale.ts';
 import { TemporaryPasswordPanel } from '../users/TemporaryPasswordPanel.tsx';
+import { usePasswordPrivacy } from './password-privacy.ts';
 
 type Labels = typeof messages.ar;
 
@@ -21,9 +22,10 @@ function errorLabel(error: string, labels: Labels) {
   return labels[keys[error] ?? 'requestFailed'];
 }
 
-function PasswordForm({ labels, pending, onSubmit }: {
+function PasswordForm({ labels, pending, disabled, onSubmit }: {
   labels: Labels;
   pending: boolean;
+  disabled: boolean;
   onSubmit: (current: string, next: string) => Promise<void>;
 }) {
   const [current, setCurrent] = useState('');
@@ -31,6 +33,7 @@ function PasswordForm({ labels, pending, onSubmit }: {
   const [confirmation, setConfirmation] = useState('');
   const [visible, setVisible] = useState(false);
   const [validation, setValidation] = useState<'invalidInput' | 'passwordPolicy' | 'passwordMismatch' | null>(null);
+  const form = usePasswordPrivacy(() => { setCurrent(''); setNext(''); setConfirmation(''); setVisible(false); });
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!current || Array.from(current).length > 128) { setValidation('invalidInput'); return; }
@@ -42,8 +45,8 @@ function PasswordForm({ labels, pending, onSubmit }: {
     await onSubmit(oldPassword, newPassword);
   };
   return (
-    <form onSubmit={submit} noValidate className="auth-form" aria-busy={pending}>
-      <fieldset disabled={pending} className="contents">
+    <form ref={form} onSubmit={submit} noValidate className="auth-form" aria-busy={pending}>
+      <fieldset disabled={disabled} className="contents">
         <label className="field" htmlFor="current-password"><span>{labels.currentPassword}</span><input id="current-password" name="current-password" dir="ltr" type={visible ? 'text' : 'password'} autoComplete="current-password" required aria-invalid={validation === 'invalidInput' || undefined} aria-describedby={validation === 'invalidInput' ? 'password-form-error' : undefined} value={current} onChange={event => { setCurrent(event.target.value); setValidation(null); }} /></label>
         <label className="field" htmlFor="new-password"><span>{labels.newPassword}</span><input id="new-password" name="new-password" dir="ltr" type={visible ? 'text' : 'password'} autoComplete="new-password" required aria-invalid={validation === 'passwordPolicy' || undefined} aria-describedby={validation === 'passwordPolicy' ? 'password-hint password-form-error' : 'password-hint'} value={next} onChange={event => { setNext(event.target.value); setValidation(null); }} /></label>
         <p id="password-hint" className="field-hint">{labels.passwordHint}</p>
@@ -56,15 +59,17 @@ function PasswordForm({ labels, pending, onSubmit }: {
   );
 }
 
-function LoginForm({ labels, pending, onSubmit }: {
+function LoginForm({ labels, pending, disabled, onSubmit }: {
   labels: Labels;
   pending: boolean;
+  disabled: boolean;
   onSubmit: (username: string, password: string) => Promise<void>;
 }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [visible, setVisible] = useState(false);
   const [invalid, setInvalid] = useState(false);
+  const form = usePasswordPrivacy(() => { setPassword(''); setVisible(false); });
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!username.trim() || Array.from(username).length > 64 || !password || Array.from(password).length > 128) { setInvalid(true); return; }
@@ -73,8 +78,8 @@ function LoginForm({ labels, pending, onSubmit }: {
     await onSubmit(username, submittedPassword);
   };
   return (
-    <form onSubmit={submit} noValidate className="auth-form" aria-busy={pending}>
-      <fieldset disabled={pending} className="contents">
+    <form ref={form} onSubmit={submit} noValidate className="auth-form" aria-busy={pending}>
+      <fieldset disabled={disabled} className="contents">
         <label className="field" htmlFor="username"><span>{labels.username}</span><input id="username" name="username" dir="ltr" autoComplete="username" autoCapitalize="none" spellCheck={false} required aria-invalid={invalid || undefined} aria-describedby={invalid ? 'login-form-error' : undefined} value={username} onChange={event => { setUsername(event.target.value); setInvalid(false); }} /></label>
         <label className="field" htmlFor="password"><span>{labels.password}</span><input id="password" name="password" dir="ltr" type={visible ? 'text' : 'password'} autoComplete="current-password" required aria-invalid={invalid || undefined} aria-describedby={invalid ? 'login-form-error' : undefined} value={password} onChange={event => { setPassword(event.target.value); setInvalid(false); }} /></label>
         {invalid && <p role="alert" className="feedback feedback-error" id="login-form-error">{labels.invalidInput}</p>}
@@ -91,7 +96,9 @@ export function AuthScreen({ language }: { language: Language }) {
   const path = usePathname();
   const auth = useAuth();
   const [selfResetResult, setSelfResetResult] = useState<{ username: string; password: string; path: string; expiresAt: number } | null>(null);
-  const { session, loading, pending, error, notice } = auth;
+  const { session, loading, pending, verifying, error, notice } = auth;
+  const blocked = pending || verifying;
+  const verificationStatus = verifying ? <p role="status" className="mb-4 text-sm text-muted">{labels.checking}</p> : null;
   useEffect(() => {
     if (selfResetResult && session && session.state !== 'anonymous') setSelfResetResult(null);
   }, [selfResetResult, session]);
@@ -144,16 +151,18 @@ export function AuthScreen({ language }: { language: Language }) {
   if (session.state === 'authenticated' && path === '/users') return (
     <div className="w-full min-w-0">
       <nav className="workspace-nav" aria-label={labels.workspace}>
-        <button type="button" className="control" onClick={() => navigate('/')} disabled={pending}>{userLabels.back}</button>
-        <button type="button" className="control" onClick={() => { void auth.logout(); }} disabled={pending}>{pending ? labels.working : labels.logout}</button>
+        <button type="button" className="control" onClick={() => navigate('/')} disabled={blocked}>{userLabels.back}</button>
+        <button type="button" className="control" onClick={() => { void auth.logout(); }} disabled={blocked}>{pending ? labels.working : labels.logout}</button>
       </nav>
+      {verificationStatus}
       {canManageUsers
-        ? <UsersScreen language={language} actorUsername={session.user!.username} onSessionInvalid={() => { auth.invalidateSession(); void auth.refresh(); }} onSelfResetResult={receiveSelfReset} foregroundActions={{ begin: auth.beginForeground, end: auth.endForeground }} />
+        ? <UsersScreen key={session.user!.username} language={language} actorUsername={session.user!.username} verificationPending={verifying} onSessionInvalid={() => { auth.invalidateSession(); void auth.refresh(); }} onSelfResetResult={receiveSelfReset} foregroundActions={{ begin: auth.beginForeground, end: auth.endForeground }} />
         : <p role="alert" className="feedback feedback-error">{userLabels.forbidden}</p>}
     </div>
   );
   return (
     <div className="auth-content">
+      {verificationStatus}
       {session.state === 'authenticated' ? (
         <>
           <span className="success-symbol" aria-hidden="true">✓</span>
@@ -163,9 +172,9 @@ export function AuthScreen({ language }: { language: Language }) {
           {error && <p role="alert" className="feedback feedback-error">{errorLabel(error, labels)}</p>}
           <dl className="account-details"><div><dt>{labels.account}</dt><dd dir="auto">{session.user?.username}</dd></div><div><dt>{labels.role}</dt><dd>{roleName}</dd></div></dl>
           <p className="workspace-note">{canManageUsers ? userLabels.adminWorkspace : labels.workspaceNote}</p>
-          {canManageUsers && <a href="/users" className="primary-button mt-5" onClick={event => { event.preventDefault(); navigate('/users'); }}>{userLabels.openUsers}</a>}
+          {canManageUsers && <a href="/users" className="primary-button mt-5" aria-disabled={blocked || undefined} onClick={event => { event.preventDefault(); if (!blocked) navigate('/users'); }}>{userLabels.openUsers}</a>}
           <p className="field-hint mt-5">{labels.sessionNote}</p>
-          <button type="button" className="control mt-6 w-full" disabled={pending} onClick={() => { void auth.logout(); }}>{pending ? labels.working : labels.logout}</button>
+          <button type="button" className="control mt-6 w-full" disabled={blocked} onClick={() => { void auth.logout(); }}>{pending ? labels.working : labels.logout}</button>
         </>
       ) : (
         <>
@@ -175,10 +184,10 @@ export function AuthScreen({ language }: { language: Language }) {
           {notice && <p role="status" className="feedback feedback-success">{labels[notice]}</p>}
           {error && <p role="alert" className="feedback feedback-error">{errorLabel(error, labels)}</p>}
           {session.state === 'password_change'
-            ? <PasswordForm labels={labels} pending={pending} onSubmit={auth.changePassword} />
-            : <LoginForm labels={labels} pending={pending} onSubmit={auth.login} />}
+            ? <PasswordForm labels={labels} pending={pending} disabled={blocked} onSubmit={auth.changePassword} />
+            : <LoginForm labels={labels} pending={pending} disabled={blocked} onSubmit={auth.login} />}
           {session.state === 'password_change'
-            ? <button type="button" className="control mt-4 w-full" disabled={pending} onClick={() => { void auth.logout(); }}>{labels.logout}</button>
+            ? <button type="button" className="control mt-4 w-full" disabled={blocked} onClick={() => { void auth.logout(); }}>{labels.logout}</button>
             : <p className="account-help">{labels.accountHelp}</p>}
         </>
       )}

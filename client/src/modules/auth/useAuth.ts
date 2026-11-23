@@ -8,6 +8,19 @@ export type SessionView = {
   expiresAt?: string;
 };
 
+type RefreshMode = 'hard' | 'background';
+
+function unexpired(session: SessionView | null) {
+  const expiry = Date.parse(session?.expiresAt ?? '');
+  return !!session && Number.isFinite(expiry) && expiry > Date.now();
+}
+
+function strongerRefresh(current: RefreshMode | null, requested: RefreshMode): RefreshMode {
+  return current === 'hard' || requested === 'hard' ? 'hard' : 'background';
+}
+
+function pageIsVisible() { return document.visibilityState === 'visible'; }
+
 const knownErrors = new Set([
   'AUTH_INVALID_CREDENTIALS', 'AUTH_RATE_LIMITED', 'AUTH_REQUIRED', 'AUTH_FORBIDDEN',
   'AUTH_CSRF', 'AUTH_INVALID_INPUT', 'AUTH_PASSWORD_POLICY', 'AUTH_PASSWORD_REUSED', 'AUTH_UNAVAILABLE',
@@ -28,49 +41,74 @@ export function useAuth() {
   const [session, setSession] = useState<SessionView | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<'signedOut' | 'passwordChanged' | null>(null);
   const generation = useRef(0);
   const busy = useRef(false);
   const foreground = useRef(false);
-  const refreshQueued = useRef(false);
+  const refreshQueued = useRef<RefreshMode | null>(null);
   const reading = useRef(false);
   const readGeneration = useRef(0);
-  const readAgain = useRef(false);
+  const readAgain = useRef<RefreshMode | null>(null);
   const mounted = useRef(true);
   const sessionRef = useRef<SessionView | null>(null);
   const activityDue = useRef(0);
 
   const accept = useCallback((next: SessionView | null) => {
-    sessionRef.current = next;
-    setCsrfToken(next?.csrfToken);
-    setSession(next);
+    const expired = !!next && next.state !== 'anonymous' && !unexpired(next);
+    const accepted = expired ? null : next;
+    sessionRef.current = accepted;
+    setCsrfToken(accepted?.csrfToken);
+    setSession(accepted);
+    if (expired) setError('AUTH_REQUIRED');
   }, []);
 
-  const refresh = useCallback(async (): Promise<void> => {
-    if (foreground.current) { refreshQueued.current = true; return; }
-    if (busy.current) return;
+  const refresh = useCallback(async (mode: RefreshMode = 'hard'): Promise<void> => {
+    const requested: RefreshMode = mode === 'background' && unexpired(sessionRef.current) ? 'background' : 'hard';
+    if (requested === 'hard') {
+      if (sessionRef.current) {
+        ++generation.current;
+        accept(null);
+      }
+      setLoading(true);
+      setVerifying(false);
+    }
+    if (foreground.current || busy.current) {
+      refreshQueued.current = strongerRefresh(refreshQueued.current, requested);
+      return;
+    }
     if (reading.current) {
-      if (readGeneration.current !== generation.current) readAgain.current = true;
+      if (readGeneration.current !== generation.current) readAgain.current = strongerRefresh(readAgain.current, requested);
       return;
     }
     reading.current = true;
+    readAgain.current = null;
     const current = ++generation.current;
     readGeneration.current = current;
-    accept(null);
-    setLoading(true);
+    if (requested === 'background') {
+      setVerifying(true);
+    } else {
+      accept(null);
+      setLoading(true);
+      setVerifying(false);
+    }
     setError(null);
     try {
       const next = await withTimeout(signal => trpc.auth.session.query(undefined, { signal }));
       if (mounted.current && current === generation.current) accept(next);
     } catch {
-      if (mounted.current && current === generation.current) setError('AUTH_UNAVAILABLE');
+      if (mounted.current && current === generation.current) { accept(null); setError('AUTH_UNAVAILABLE'); }
     } finally {
       reading.current = false;
-      if (mounted.current && current === generation.current) setLoading(false);
+      if (mounted.current) {
+        setVerifying(false);
+        if (current === generation.current) setLoading(false);
+      }
       if (mounted.current && readAgain.current && document.visibilityState === 'visible') {
-        readAgain.current = false;
-        void refresh();
+        const queued = readAgain.current;
+        readAgain.current = null;
+        void refresh(queued);
       }
     }
   }, [accept]);
@@ -79,25 +117,28 @@ export function useAuth() {
     ++generation.current;
     accept(null);
     setLoading(false);
+    setVerifying(false);
     setError(null);
     setNotice(null);
   }, [accept]);
 
   const beginForeground = useCallback(() => {
+    if (!pageIsVisible()) return false;
+    if (sessionRef.current && !unexpired(sessionRef.current)) { void refresh(); return false; }
     if (busy.current || reading.current || foreground.current || sessionRef.current?.state !== 'authenticated') return false;
     foreground.current = true;
     ++generation.current;
     setPending(true);
     return true;
-  }, []);
+  }, [refresh]);
 
   const endForeground = useCallback((options?: { skipQueuedRefresh?: boolean }) => {
     if (!foreground.current) return;
     foreground.current = false;
     setPending(false);
     const queued = refreshQueued.current;
-    refreshQueued.current = false;
-    if (queued && !options?.skipQueuedRefresh && document.visibilityState === 'visible') void refresh();
+    refreshQueued.current = null;
+    if (queued && !options?.skipQueuedRefresh && document.visibilityState === 'visible') void refresh(queued);
   }, [refresh]);
 
   useEffect(() => {
@@ -106,19 +147,18 @@ export function useAuth() {
     const onVisible = () => {
       if (document.visibilityState === 'hidden') {
         ++generation.current;
-        sessionRef.current = null;
-        setSession(null);
-        if (!busy.current && !foreground.current) setCsrfToken();
-        setLoading(true);
-      } else { void refresh(); }
+        if (!unexpired(sessionRef.current)) {
+          accept(null);
+          setLoading(true);
+        }
+      } else { void refresh('background'); }
     };
-    const onPageShow = () => { void refresh(); };
+    const onPageShow = () => { void refresh('background'); };
     const onFocus = () => {
       if (document.visibilityState !== 'visible') return;
       const current = sessionRef.current;
       const expiresAt = Date.parse(current?.expiresAt ?? '');
-      // Visibility changes already invalidate the view. Focusing a still-visible,
-      // unexpired session must not discard the account form and load it again.
+      // A simple window focus is not a loss of the already verified session.
       if (current && Number.isFinite(expiresAt) && expiresAt > Date.now()) return;
       void refresh();
     };
@@ -136,7 +176,7 @@ export function useAuth() {
   }, [accept, refresh]);
 
   const mutate = useCallback(async (operation: (signal: AbortSignal) => Promise<SessionView>, kind: 'login' | 'password' | 'logout') => {
-    if (busy.current || foreground.current) return;
+    if (!pageIsVisible() || busy.current || foreground.current || reading.current) return;
     busy.current = true;
     ++generation.current;
     setPending(true);
@@ -165,7 +205,13 @@ export function useAuth() {
       busy.current = false;
       if (mounted.current) {
         setPending(false);
-        if (successful && document.visibilityState === 'visible' && !sessionRef.current) void refresh();
+        const queued = refreshQueued.current;
+        refreshQueued.current = null;
+        if (document.visibilityState === 'visible') {
+          if (queued === 'hard') void refresh();
+          else if (successful && !unexpired(sessionRef.current)) void refresh();
+          else if (!successful && queued) void refresh(queued);
+        }
       }
     }
   }, [accept, refresh]);
@@ -174,9 +220,9 @@ export function useAuth() {
     if (!session?.expiresAt || session.state === 'anonymous') return;
     const delay = Math.max(0, Date.parse(session.expiresAt) - Date.now());
     const timer = window.setTimeout(() => {
+      invalidateSession();
       if (foreground.current) {
-        invalidateSession();
-        refreshQueued.current = true;
+        refreshQueued.current = 'hard';
       } else { void refresh(); }
     }, Math.min(delay, 2_147_483_647));
     return () => window.clearTimeout(timer);
@@ -205,7 +251,7 @@ export function useAuth() {
   }, [session?.state, accept]);
 
   return {
-    session, loading, pending, error, notice, refresh, invalidateSession, beginForeground, endForeground,
+    session, loading, pending, verifying, error, notice, refresh, invalidateSession, beginForeground, endForeground,
     login: (username: string, password: string) => mutate(signal => trpc.auth.login.mutate({ username, password }, { signal }), 'login'),
     changePassword: (currentPassword: string, newPassword: string) => mutate(signal => trpc.auth.changePassword.mutate({ currentPassword, newPassword }, { signal }), 'password'),
     logout: () => mutate(signal => trpc.auth.logout.mutate(undefined, { signal }), 'logout'),

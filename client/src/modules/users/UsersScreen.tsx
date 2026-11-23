@@ -6,6 +6,7 @@ import type { UserLabels } from './locale.ts';
 import { useUsers } from './useUsers.ts';
 import type { ManagedRole, ManagedUser, UserAction } from './useUsers.ts';
 import { TemporaryPasswordPanel } from './TemporaryPasswordPanel.tsx';
+import { usePasswordPrivacy } from '../auth/password-privacy.ts';
 
 type Selection = { kind: 'create' } | { kind: 'role' | 'disable' | 'reset'; user: ManagedUser };
 
@@ -26,17 +27,19 @@ function errorText(error: string, labels: UserLabels) {
   return labels[map[error] ?? 'requestFailed'];
 }
 
-function AccountForm({ selection, roles, labels, pending, onSubmit, onCancel, selfReset }: {
+function AccountForm({ selection, roles, labels, pending, disabled, onSubmit, onCancel, selfReset }: {
   selection: Selection; roles: ManagedRole[]; labels: UserLabels; pending: boolean;
   onSubmit: (username: string, roleId: string, password: string) => Promise<boolean>;
   onCancel: () => void;
   selfReset: boolean;
+  disabled: boolean;
 }) {
   const [username, setUsername] = useState('');
   const [roleId, setRoleId] = useState(selection.kind === 'role' ? selection.user.roleId : '');
   const [password, setPassword] = useState('');
   const [visible, setVisible] = useState(false);
   const [invalid, setInvalid] = useState(false);
+  const formRef = usePasswordPrivacy(() => { setPassword(''); setVisible(false); });
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { heading.current?.focus(); }, []);
   const title = selection.kind === 'create' ? labels.createHeading : selection.kind === 'role' ? labels.roleHeading : selection.kind === 'disable' ? labels.disableHeading : labels.resetHeading;
@@ -62,8 +65,8 @@ function AccountForm({ selection, roles, labels, pending, onSubmit, onCancel, se
       <h3 id="account-form-heading" ref={heading} tabIndex={-1} className="text-lg font-bold outline-none">{title}</h3>
       {selection.kind !== 'create' && <p className="mt-1 font-semibold"><bdi>{selection.user.username}</bdi></p>}
       <p className="mt-2 text-sm leading-7 text-muted">{help}</p>
-      <form className="auth-form" onSubmit={submit} noValidate aria-busy={pending}>
-        <fieldset className="contents" disabled={pending}>
+      <form ref={formRef} className="auth-form" onSubmit={submit} noValidate aria-busy={pending}>
+        <fieldset className="contents" disabled={disabled}>
           {selection.kind === 'create' && <label className="field" htmlFor="managed-username"><span>{labels.username}</span><input id="managed-username" name="managed-username" dir="ltr" autoComplete="off" autoCapitalize="none" spellCheck={false} value={username} required onChange={event => { setUsername(event.target.value); setInvalid(false); }} aria-invalid={invalid || undefined} aria-describedby={invalid ? 'managed-form-error' : undefined} /></label>}
           {(selection.kind === 'create' || selection.kind === 'role') && <label className="field" htmlFor="managed-role"><span>{labels.role}</span><select id="managed-role" value={roleId} required onChange={event => { setRoleId(event.target.value); setInvalid(false); }} aria-invalid={invalid || undefined} aria-describedby={invalid ? 'managed-form-error' : undefined}><option value="">{labels.chooseRole}</option>{roles.map(role => <option key={role.id} value={role.id}>{roleName(role, labels)}</option>)}</select></label>}
           <label className="field" htmlFor="manager-current-password"><span>{labels.currentPassword}</span><input id="manager-current-password" name="manager-current-password" dir="ltr" type={visible ? 'text' : 'password'} autoComplete="current-password" value={password} required onChange={event => { setPassword(event.target.value); setInvalid(false); }} aria-describedby={invalid ? 'reauth-help managed-form-error' : 'reauth-help'} aria-invalid={invalid || undefined} /></label>
@@ -80,8 +83,9 @@ function AccountForm({ selection, roles, labels, pending, onSubmit, onCancel, se
   );
 }
 
-export function UsersScreen({ language, actorUsername, onSessionInvalid, onSelfResetResult, foregroundActions }: {
+export function UsersScreen({ language, actorUsername, verificationPending, onSessionInvalid, onSelfResetResult, foregroundActions }: {
   language: Language; actorUsername: string; onSessionInvalid: () => void;
+  verificationPending: boolean;
   onSelfResetResult: (username: string, password: string) => void;
   foregroundActions: { begin: () => boolean; end: (options?: { skipQueuedRefresh?: boolean }) => void };
 }) {
@@ -89,6 +93,7 @@ export function UsersScreen({ language, actorUsername, onSessionInvalid, onSelfR
   const accounts = useUsers(onSessionInvalid, onSelfResetResult, foregroundActions);
   const [selection, setSelection] = useState<Selection | null>(null);
   const { users, roles, loading, pending, error, notice, secret } = accounts;
+  const blocked = pending || verificationPending;
 
   const select = (value: Selection) => { accounts.clearFeedback(); setSelection(value); };
   const submit = async (username: string, roleId: string, password: string) => {
@@ -105,17 +110,17 @@ export function UsersScreen({ language, actorUsername, onSessionInvalid, onSelfR
 
   return (
     <section className="users-content" aria-labelledby="users-heading">
-      <header className="users-heading-row"><div><h2 id="users-heading" className="card-title">{labels.heading}</h2><p className="card-description">{labels.description}</p></div><button type="button" className="primary-button users-add" disabled={pending || loading} onClick={() => select({ kind: 'create' })}>{labels.addUser}</button></header>
+      <header className="users-heading-row"><div><h2 id="users-heading" className="card-title">{labels.heading}</h2><p className="card-description">{labels.description}</p></div><button type="button" className="primary-button users-add" disabled={blocked || loading} onClick={() => select({ kind: 'create' })}>{labels.addUser}</button></header>
       {notice && <p role="status" className="feedback feedback-success">{noticeLabel[notice]}</p>}
       {error && <p role="alert" className="feedback feedback-error">{errorText(error, labels)}</p>}
       {secret && <TemporaryPasswordPanel username={secret.username} password={secret.password} labels={labels} onDismiss={accounts.dismissSecret} />}
-      {selection && <AccountForm key={selection.kind + (selection.kind === 'create' ? '' : selection.user.id)} selection={selection} roles={roles} labels={labels} pending={pending} onSubmit={submit} onCancel={() => setSelection(null)} selfReset={selection.kind === 'reset' && selection.user.username === actorUsername} />}
+      {selection && <AccountForm key={selection.kind + (selection.kind === 'create' ? '' : selection.user.id)} selection={selection} roles={roles} labels={labels} pending={pending} disabled={blocked} onSubmit={submit} onCancel={() => setSelection(null)} selfReset={selection.kind === 'reset' && selection.user.username === actorUsername} />}
       <p className="mt-5 text-sm text-muted">{labels.selfActionsNote}</p>
-      <div className="users-list-toolbar"><button type="button" className="control" disabled={pending || loading} onClick={() => { setSelection(null); accounts.refresh(); }}>{labels.refresh}</button><p className="text-sm text-muted">{labels.page} {accounts.page.toLocaleString(language)}</p></div>
+      <div className="users-list-toolbar"><button type="button" className="control" disabled={blocked || loading} onClick={() => { setSelection(null); accounts.refresh(); }}>{labels.refresh}</button><p className="text-sm text-muted">{labels.page} {accounts.page.toLocaleString(language)}</p></div>
       {loading ? <p role="status" className="py-8 text-center text-muted">{labels.loading}</p> : users.length === 0 ? <p className="py-8 text-center text-muted">{labels.empty}</p> : (
-        <div className="users-table-wrapper"><table className="users-table"><thead><tr><th scope="col">{labels.username}</th><th scope="col">{labels.role}</th><th scope="col">{labels.status}</th><th scope="col">{labels.passwordState}</th><th scope="col">{labels.actions}</th></tr></thead><tbody>{users.map(user => <tr key={user.id}><th scope="row"><bdi>{user.username}</bdi></th><td>{roleName(roles.find(role => role.id === user.roleId), labels)}</td><td><span className={user.accountStatus === 'active' ? 'status-badge status-active' : 'status-badge status-disabled'}>{user.accountStatus === 'active' ? labels.active : labels.disabled}</span></td><td>{user.mustChangePassword ? labels.temporary : labels.permanent}</td><td><div className="users-actions"><button type="button" className="control" disabled={pending || user.username === actorUsername} onClick={() => select({ kind: 'role', user })}>{labels.changeRole}</button><button type="button" className="control" disabled={pending || user.accountStatus === 'disabled' || user.username === actorUsername} onClick={() => select({ kind: 'disable', user })}>{labels.disable}</button><button type="button" className="control" disabled={pending} onClick={() => select({ kind: 'reset', user })}>{labels.resetPassword}</button></div></td></tr>)}</tbody></table></div>
+        <div className="users-table-wrapper"><table className="users-table"><thead><tr><th scope="col">{labels.username}</th><th scope="col">{labels.role}</th><th scope="col">{labels.status}</th><th scope="col">{labels.passwordState}</th><th scope="col">{labels.actions}</th></tr></thead><tbody>{users.map(user => <tr key={user.id}><th scope="row"><bdi>{user.username}</bdi></th><td>{roleName(roles.find(role => role.id === user.roleId), labels)}</td><td><span className={user.accountStatus === 'active' ? 'status-badge status-active' : 'status-badge status-disabled'}>{user.accountStatus === 'active' ? labels.active : labels.disabled}</span></td><td>{user.mustChangePassword ? labels.temporary : labels.permanent}</td><td><div className="users-actions"><button type="button" className="control" disabled={blocked || user.username === actorUsername} onClick={() => select({ kind: 'role', user })}>{labels.changeRole}</button><button type="button" className="control" disabled={blocked || user.accountStatus === 'disabled' || user.username === actorUsername} onClick={() => select({ kind: 'disable', user })}>{labels.disable}</button><button type="button" className="control" disabled={blocked} onClick={() => select({ kind: 'reset', user })}>{labels.resetPassword}</button></div></td></tr>)}</tbody></table></div>
       )}
-      <nav className="users-pagination" aria-label={labels.heading}><button type="button" className="control" disabled={pending || loading || !accounts.hasPrevious} onClick={() => { setSelection(null); accounts.previous(); }}>{labels.previous}</button><button type="button" className="control" disabled={pending || loading || !accounts.hasNext} onClick={() => { setSelection(null); accounts.next(); }}>{labels.next}</button></nav>
+      <nav className="users-pagination" aria-label={labels.heading}><button type="button" className="control" disabled={blocked || loading || !accounts.hasPrevious} onClick={() => { setSelection(null); accounts.previous(); }}>{labels.previous}</button><button type="button" className="control" disabled={blocked || loading || !accounts.hasNext} onClick={() => { setSelection(null); accounts.next(); }}>{labels.next}</button></nav>
     </section>
   );
 }
