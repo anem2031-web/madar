@@ -139,3 +139,36 @@ test('own reset response marks session revocation and old cookie cannot continue
   expect(session.body.result.data.state).toBe('password_change');
   expect((await nextLogin.query('users.list')).response.status).toBe(401);
 });
+
+test('after forced password change, user creation reauthenticates with the exact new Unicode password and rejects the old temporary password', async () => {
+  const newPassword = '  كلمة سر 🔐 #$" 2026 خاصة  ';
+  const api = await client('TEMPADMIN');
+  expect((await api.query('auth.session')).body.result.data.state).toBe('password_change');
+
+  const changed = await api.mutate('auth.changePassword', { currentPassword: password, newPassword });
+  expect(changed.response.status).toBe(200);
+  expect(changed.body.result.data.state).toBe('authenticated');
+
+  const created = await api.mutate('users.create', { username: 'CreatedWithNewPassword', roleId: hrRoleId, currentPassword: newPassword });
+  expect(created.response.status).toBe(200);
+  expect(created.body.result.data.user.username).toBe('CreatedWithNewPassword');
+  const committedUserCount = store.users.size;
+
+  const oldRejected = await api.mutate('users.create', { username: 'OldPasswordMustNotCreate', roleId: hrRoleId, currentPassword: password });
+  expect(oldRejected.response.status).toBe(401);
+  expect(oldRejected.body.error.message).toBe('USERS_REAUTH_FAILED');
+  expect(store.users.size).toBe(committedUserCount);
+  expect([...store.users.values()].some(user => user.username === 'OldPasswordMustNotCreate')).toBe(false);
+
+  const independent = await client('TEMPADMIN', newPassword);
+  const secondCreation = await independent.mutate('users.create', { username: 'CreatedAfterFreshLogin', roleId: hrRoleId, currentPassword: newPassword });
+  expect(secondCreation.response.status).toBe(200);
+  expect(secondCreation.body.result.data.user.username).toBe('CreatedAfterFreshLogin');
+
+  const exposedValues = JSON.stringify([changed.body, oldRejected.body, store.events]);
+  for (const secret of [password, newPassword, created.body.result.data.temporaryPassword, secondCreation.body.result.data.temporaryPassword]) {
+    expect(exposedValues).not.toContain(JSON.stringify(secret).slice(1, -1));
+  }
+  const listed = await independent.query('users.list');
+  expect(JSON.stringify(listed.body)).not.toMatch(/passwordHash|temporaryPassword|scrypt\$/);
+});

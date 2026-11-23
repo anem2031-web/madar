@@ -43,12 +43,17 @@ function AccountForm({ selection, roles, labels, pending, onSubmit, onCancel, se
   const help = selection.kind === 'create' ? labels.createHelp : selection.kind === 'role' ? labels.roleHelp : selection.kind === 'disable' ? labels.disableHelp : selfReset ? labels.selfResetHelp : labels.resetHelp;
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!password || Array.from(password).length > 128
+    const form = event.currentTarget;
+    // Password managers can update the native field without firing React's change event.
+    const submittedPassword = new FormData(form).get('manager-current-password');
+    const currentPassword = typeof submittedPassword === 'string' ? submittedPassword : '';
+    if (!currentPassword || Array.from(currentPassword).length > 128
       || (selection.kind === 'create' && (!username.trim() || Array.from(username.trim()).length > 64))
       || ((selection.kind === 'role' || selection.kind === 'create') && !roles.some(role => role.id === roleId))) {
       setInvalid(true); return;
     }
-    const currentPassword = password;
+    const passwordField = form.elements.namedItem('manager-current-password');
+    if (passwordField instanceof HTMLInputElement) passwordField.value = '';
     setPassword(''); setVisible(false); setInvalid(false);
     await onSubmit(username.trim(), roleId, currentPassword);
   };

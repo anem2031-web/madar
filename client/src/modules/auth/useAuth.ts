@@ -113,16 +113,25 @@ export function useAuth() {
       } else { void refresh(); }
     };
     const onPageShow = () => { void refresh(); };
+    const onFocus = () => {
+      if (document.visibilityState !== 'visible') return;
+      const current = sessionRef.current;
+      const expiresAt = Date.parse(current?.expiresAt ?? '');
+      // Visibility changes already invalidate the view. Focusing a still-visible,
+      // unexpired session must not discard the account form and load it again.
+      if (current && Number.isFinite(expiresAt) && expiresAt > Date.now()) return;
+      void refresh();
+    };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('pageshow', onPageShow);
-    window.addEventListener('focus', onPageShow);
+    window.addEventListener('focus', onFocus);
     return () => {
       mounted.current = false;
       ++generation.current;
       setCsrfToken();
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('pageshow', onPageShow);
-      window.removeEventListener('focus', onPageShow);
+      window.removeEventListener('focus', onFocus);
     };
   }, [accept, refresh]);
 
