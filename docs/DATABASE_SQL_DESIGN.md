@@ -176,7 +176,7 @@ users.role_id يحدد دور الحساب. لا جداول مجموعات أو 
 | numbering_counters | series_id: ID؛ period_key: VARCHAR(4) ascii_bin للسنة أو ALL؛ last_value: BIGINT UNSIGNED DEFAULT 0 |
 | numbering_issuances | id: ID؛ series_id: ID؛ period_key: VARCHAR(4) ascii_bin؛ sequence_value: BIGINT UNSIGNED؛ formatted_number: VARCHAR(64) ascii_bin؛ config_snapshot: JSON؛ issued_at: TIME؛ actor_user_id: ID؛ action_key: VARCHAR(96) ascii_bin؛ request_key: ID؛ payload_hash: HASH؛ target_module: VARCHAR(64) ascii_bin؛ target_id: ID |
 
-القيمة العددية عبر mysql2/Drizzle تعالج كسلسلة عشرية أو bigint، وتتحول إلى سلسلة عند JSON؛ لا JavaScript number غير آمن. قيد uniqueness للسلسلة والفترة والعدد، وآخر للرقم النهائي عالميًا، وآخر للمستخدم والإجراء ومفتاح الطلب. يرتبط الإصدار بالعداد بمفتاحه المركب، دون حذف التاريخ. لا تغيير للمقترحات الثلاثة المنتظرة: توقيت السنة وعرض الخانات وتثبيت عناصر الصيغة بعد أول إصدار. لا تزرع أمثلة LEV وDOC كسلاسل معتمدة.
+القيمة العددية عبر mysql2/Drizzle تعالج كسلسلة عشرية أو bigint وتتحول إلى سلسلة عند JSON، دون number غير آمن. قيد uniqueness للسلسلة والفترة والعدد وآخر للرقم النهائي عالميًا وآخر للمستخدم والإجراء ومفتاح الطلب، والإصدار مرتبط بالعداد دون حذف التاريخ. اعتمد D-072 وD-073 سنة الرياض وحشو4خانات وبادئة3أحرف على شكل Fsw وتثبيت إعدادات الرقم بعد أول إصدار؛ هذه قواعد تحقق خادمي ضمن أعمدة المخطط الحالية، دون تعديل هيكلي أو CHECK جديد. لا تزرع الأمثلة كسلاسل فعلية.
 
 ## سجل العلاقات وسياسات الحذف والتحديث
 

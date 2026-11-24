@@ -29,7 +29,7 @@ afterAll(async () => {
   await closed;
 });
 
-test.each(['/permissions', '/organization'])('deep link %s serves the public shell while APIs and unknown routes retain their own responses', async path => {
+test.each(['/permissions', '/organization', '/settings/numbering'])('deep link %s serves the public shell while APIs and unknown routes retain their own responses', async path => {
   const page = await fetch(`${origin}${path}`);
   expect(page.status).toBe(200);
   expect(page.headers.get('content-type')).toContain('text/html');

@@ -6,13 +6,14 @@ const destinations = [
   { path: '/organization', permission: 'organization.read' },
   { path: '/users', permission: 'users.manage' },
   { path: '/permissions', permission: 'permissions.manage_overrides' },
+  { path: '/settings/numbering', permission: 'settings.manage' },
 ] as const;
 
 test('the registry defines only implemented destinations with explicit policy and deterministic priority', () => {
   expect(() => assertPageRegistry()).not.toThrow();
-  expect(registeredPages.map(page => page.path).sort()).toEqual(['/', '/organization', '/permissions', '/users']);
+  expect(registeredPages.map(page => page.path).sort()).toEqual(['/', '/organization', '/permissions', '/settings/numbering', '/users']);
   expect(getPage('/')).toMatchObject({ id: 'workspace', kind: 'workspace', requiredPermissions: [], landingPriority: null });
-  expect(destinations.map(destination => getPage(destination.path)!.landingPriority)).toEqual([10, 20, 30]);
+  expect(destinations.map(destination => getPage(destination.path)!.landingPriority)).toEqual([10, 20, 30, 40]);
   for (const destination of destinations) {
     const page = getPage(destination.path)!;
     expect(page).toMatchObject({ kind: 'protected', enabled: true, permissionMode: 'all', requiredPermissions: [destination.permission] });
@@ -22,7 +23,7 @@ test('the registry defines only implemented destinations with explicit policy an
 
 test('all permission combinations have stable one-hop redirects while allowed current pages remain in place', () => {
   const rolesBefore = JSON.stringify(initialRolePermissions);
-  for (let mask = 0; mask < 8; mask++) {
+  for (let mask = 0; mask < 2 ** destinations.length; mask++) {
     const permissions = Object.freeze(destinations.filter((_destination, index) => !!(mask & (1 << index))).map(destination => destination.permission));
     const permitted = destinations.filter(destination => permissions.includes(destination.permission));
     expect(getAllowedLandingPages(permissions).map(page => page.path)).toEqual(permitted.map(destination => destination.path));
@@ -76,7 +77,7 @@ test('unknown paths and untrusted return targets remain terminal rather than bec
 });
 
 test('unknown, write-only and unrelated permissions do not grant pages or force movement from an allowed page', () => {
-  const unrelated = ['unknown.permission', 'settings.manage', 'employees.create', 'roles.manage', 'audit.read'];
+  const unrelated = ['unknown.permission', 'employees.update', 'employees.create', 'roles.manage', 'audit.read'];
   expect(getAllowedLandingPages(unrelated)).toEqual([]);
   expect(resolvePageAccess({ pathname: '/users', session: { state: 'authenticated', permissions: unrelated } }).kind).toBe('no-access');
   const current = resolvePageAccess({ pathname: '/permissions', session: { state: 'authenticated', permissions: [...permissionCodes] } });

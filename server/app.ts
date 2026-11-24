@@ -11,6 +11,8 @@ import { createPermissionOverridesService } from './modules/permission-overrides
 import type { PermissionOverridesStore } from './modules/permission-overrides/store.ts';
 import { createOrganizationService } from './modules/organization/service.ts';
 import type { OrganizationStore } from './modules/organization/store.ts';
+import { createNumberingSettingsService } from './core/numbering/service.ts';
+import type { NumberingSettingsStore } from './core/numbering/store.ts';
 import { registeredPagePaths } from '../shared/permissions/pages.ts';
 
 type AppOptions = {
@@ -21,9 +23,10 @@ type AppOptions = {
   usersStore?: UsersStore;
   permissionOverridesStore?: PermissionOverridesStore;
   organizationStore?: OrganizationStore;
+  numberingSettingsStore?: NumberingSettingsStore;
 };
 
-export function createApp({ clientDirectory, pingDatabase, authStore, authConfig, usersStore, permissionOverridesStore, organizationStore }: AppOptions = {}) {
+export function createApp({ clientDirectory, pingDatabase, authStore, authConfig, usersStore, permissionOverridesStore, organizationStore, numberingSettingsStore }: AppOptions = {}) {
   const app = express();
   app.disable('x-powered-by');
   const secureCookies = authConfig?.origin.startsWith('https://') ?? false;
@@ -31,6 +34,7 @@ export function createApp({ clientDirectory, pingDatabase, authStore, authConfig
   const users = usersStore && auth ? createUsersService(usersStore, auth) : undefined;
   const permissionOverrides = permissionOverridesStore && auth ? createPermissionOverridesService(permissionOverridesStore, auth) : undefined;
   const organization = organizationStore && auth ? createOrganizationService(organizationStore, auth) : undefined;
+  const numberingSettings = numberingSettingsStore && auth ? createNumberingSettingsService(numberingSettingsStore, auth) : undefined;
   app.use((_request, response, next) => {
     response.set('X-Content-Type-Options', 'nosniff');
     next();
@@ -54,7 +58,7 @@ export function createApp({ clientDirectory, pingDatabase, authStore, authConfig
     response.set('Cache-Control', 'no-store');
     next();
   });
-  app.use('/api/trpc', express.json({ limit: '8kb' }), createExpressMiddleware({ router: appRouter, allowBatching: false, createContext: ({ req, res }) => ({ req, res, auth, users, permissionOverrides, organization, secureCookies }) }));
+  app.use('/api/trpc', express.json({ limit: '8kb' }), createExpressMiddleware({ router: appRouter, allowBatching: false, createContext: ({ req, res }) => ({ req, res, auth, users, permissionOverrides, organization, numberingSettings, secureCookies }) }));
 
   if (clientDirectory) {
     for (const path of ['/manifest.webmanifest', '/sw.js', '/offline.html']) {

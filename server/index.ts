@@ -6,6 +6,7 @@ import { createAuthStore } from './modules/auth/repository.ts';
 import { createUsersStore } from './modules/users/repository.ts';
 import { createPermissionOverridesStore } from './modules/permission-overrides/repository.ts';
 import { createOrganizationStore } from './modules/organization/repository.ts';
+import { createNumberingSettingsStore } from './core/numbering/repository.ts';
 
 try {
   const config = readRuntimeConfig(process.env);
@@ -20,6 +21,7 @@ try {
     usersStore: database ? createUsersStore(database) : undefined,
     permissionOverridesStore: database ? createPermissionOverridesStore(database) : undefined,
     organizationStore: database ? createOrganizationStore(database) : undefined,
+    numberingSettingsStore: database ? createNumberingSettingsStore(database) : undefined,
   });
   const listener = server.listen(config.port, config.host, () => {
     console.info(`Madar listening on ${config.host}:${config.port} (${config.mode})`);

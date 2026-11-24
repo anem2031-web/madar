@@ -4,6 +4,7 @@ import type { Language } from '../../i18n/locale.ts';
 import { OrganizationScreen } from '../organization/OrganizationScreen.tsx';
 import { PermissionsScreen } from '../permission-overrides/PermissionsScreen.tsx';
 import { UsersScreen } from '../users/UsersScreen.tsx';
+import { NumberingScreen } from '../settings/numbering/NumberingScreen.tsx';
 import type { AccessFailureHandlers } from './access-failures.ts';
 
 type PageProps = {
@@ -23,5 +24,7 @@ export const protectedPageComponents = {
   users: (props: PageProps) => <UsersScreen language={props.language} actorUsername={props.username} verificationPending={props.verifying}
     accessHandlers={props.accessHandlers} onSelfResetResult={props.onSelfResetResult} foregroundActions={props.foregroundActions} />,
   permissions: (props: PageProps) => <PermissionsScreen language={props.language} actorUsername={props.username} verificationPending={props.verifying}
+    accessHandlers={props.accessHandlers} foregroundActions={props.foregroundActions} />,
+  numbering: (props: PageProps) => <NumberingScreen language={props.language} verificationPending={props.verifying}
     accessHandlers={props.accessHandlers} foregroundActions={props.foregroundActions} />,
 } satisfies Record<ProtectedPageId, (props: PageProps) => ReactNode>;

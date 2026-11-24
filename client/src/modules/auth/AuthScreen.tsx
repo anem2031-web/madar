@@ -9,6 +9,7 @@ import { TemporaryPasswordPanel } from '../users/TemporaryPasswordPanel.tsx';
 import { usePasswordPrivacy } from './password-privacy.ts';
 import { organizationMessages } from '../organization/locale.ts';
 import { permissionMessages } from '../permission-overrides/locale.ts';
+import { numberingMessages } from '../settings/numbering/locale.ts';
 
 import { getAllowedLandingPages } from '../../../../shared/permissions/pages.ts';
 import type { ProtectedPageId } from '../../../../shared/permissions/pages.ts';
@@ -101,6 +102,7 @@ export function AuthScreen({ language }: { language: Language }) {
   const userLabels = userMessages[language];
   const permissionLabels = permissionMessages[language];
   const organizationLabels = organizationMessages[language];
+  const numberingLabels = numberingMessages[language];
   const path = usePathname();
   const auth = useAuth();
   const guard = usePageGuard(path, auth);
@@ -158,6 +160,7 @@ export function AuthScreen({ language }: { language: Language }) {
     organization: organizationLabels.openOrganization,
     users: userLabels.openUsers,
     permissions: permissionLabels.openPermissions,
+    numbering: numberingLabels.openNumbering,
   } satisfies Record<ProtectedPageId, string>;
   const allowedPages = getAllowedLandingPages(session?.user?.permissions ?? []);
   if (guard.decision.kind === 'not-found') return (

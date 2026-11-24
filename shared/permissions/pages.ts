@@ -22,6 +22,8 @@ export const registeredPages = [
     permissionMode: 'all', requiredPermissions: ['users.manage'], landingPriority: 20 },
   { id: 'permissions', path: '/permissions', kind: 'protected', layout: 'workspace', enabled: true,
     permissionMode: 'all', requiredPermissions: ['permissions.manage_overrides'], landingPriority: 30 },
+  { id: 'numbering', path: '/settings/numbering', kind: 'protected', layout: 'workspace', enabled: true,
+    permissionMode: 'all', requiredPermissions: ['settings.manage'], landingPriority: 40 },
 ] as const satisfies readonly PageDefinition[];
 
 export type RegisteredPage = typeof registeredPages[number];
