@@ -7,16 +7,19 @@ import { usersRoute } from '../modules/users/routes.ts';
 import { assignRoleInput, createInput, listInput, targetInput } from '../modules/users/validation.ts';
 import { OverridesFault } from '../modules/permission-overrides/errors.ts';
 import { permissionOverridesRoute } from '../modules/permission-overrides/routes.ts';
-import type { PermissionOverridesContext } from '../modules/permission-overrides/routes.ts';
+import { OrganizationFault } from '../modules/organization/errors.ts';
+import { organizationRoute } from '../modules/organization/routes.ts';
+import type { OrganizationContext } from '../modules/organization/routes.ts';
+import { createBranchInput, createDepartmentInput, listBranchesInput, listDepartmentsInput, renameBranchInput, renameDepartmentInput } from '../modules/organization/validation.ts';
 import { detailInput as overridesDetailInput, listInput as overridesListInput, saveInput as overridesSaveInput } from '../modules/permission-overrides/validation.ts';
 
-const t = initTRPC.context<PermissionOverridesContext>().create({
+const t = initTRPC.context<OrganizationContext>().create({
   errorFormatter({ shape, error }) {
     return {
       code: shape.code,
-      message: error.cause instanceof AuthFault || error.cause instanceof UsersFault || error.cause instanceof OverridesFault ? error.cause.reason : shape.data.code,
+      message: error.cause instanceof AuthFault || error.cause instanceof UsersFault || error.cause instanceof OverridesFault || error.cause instanceof OrganizationFault ? error.cause.reason : shape.data.code,
       data: { code: shape.data.code, httpStatus: shape.data.httpStatus,
-        ...((error.cause instanceof AuthFault || error.cause instanceof UsersFault || error.cause instanceof OverridesFault) && error.cause.requestId ? { requestId: error.cause.requestId } : {}),
+        ...((error.cause instanceof AuthFault || error.cause instanceof UsersFault || error.cause instanceof OverridesFault || error.cause instanceof OrganizationFault) && error.cause.requestId ? { requestId: error.cause.requestId } : {}),
       },
     };
   },
@@ -37,6 +40,14 @@ export const appRouter = t.router({
     assignRole: t.procedure.input(assignRoleInput).mutation(({ ctx, input }) => usersRoute(ctx, (service, request) => service.assignRole(request, input))),
     disable: t.procedure.input(targetInput).mutation(({ ctx, input }) => usersRoute(ctx, (service, request) => service.disable(request, input))),
     resetPassword: t.procedure.input(targetInput).mutation(({ ctx, input }) => usersRoute(ctx, (service, request) => service.resetPassword(request, input))),
+  }),
+  organization: t.router({
+    listBranches: t.procedure.input(listBranchesInput).query(({ ctx, input }) => organizationRoute(ctx, (service, request) => service.listBranches(request, input))),
+    listDepartments: t.procedure.input(listDepartmentsInput).query(({ ctx, input }) => organizationRoute(ctx, (service, request) => service.listDepartments(request, input))),
+    createBranch: t.procedure.input(createBranchInput).mutation(({ ctx, input }) => organizationRoute(ctx, (service, request) => service.createBranch(request, input))),
+    renameBranch: t.procedure.input(renameBranchInput).mutation(({ ctx, input }) => organizationRoute(ctx, (service, request) => service.renameBranch(request, input))),
+    createDepartment: t.procedure.input(createDepartmentInput).mutation(({ ctx, input }) => organizationRoute(ctx, (service, request) => service.createDepartment(request, input))),
+    renameDepartment: t.procedure.input(renameDepartmentInput).mutation(({ ctx, input }) => organizationRoute(ctx, (service, request) => service.renameDepartment(request, input))),
   }),
   permissionOverrides: t.router({
     list: t.procedure.input(overridesListInput).query(({ ctx, input }) => permissionOverridesRoute(ctx, (service, request) => service.list(request, input))),

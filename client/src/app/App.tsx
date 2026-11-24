@@ -9,7 +9,7 @@ export function App() {
   const labels = messages[language];
   const nextLanguage = language === 'ar' ? 'en' : 'ar';
   const pathname = usePathname();
-  const workspacePage = pathname === '/users' || pathname === '/permissions';
+  const workspacePage = pathname === '/users' || pathname === '/permissions' || pathname === '/organization';
 
   useEffect(() => applyLanguage(language), [language]);
 

@@ -256,3 +256,7 @@ client/src/modules/users يحوي UsersScreen.tsx وuseUsers.ts وlocale.ts وTe
 ## جزء تخصيص المستخدم — M3-02
 
 نُفذ server/modules/permission-overrides مستقلًا بعقد التخزين والاستعلامات والخدمة والتحقق والمسارات والأخطاء واختبارات الخدمة والمستودع وHTTP، وclient/src/modules/permission-overrides للشاشة وحالة الطلبات والترجمة مع shared/i18n/ar وen. المسار /permissions يتطلب permissions.manage_overrides، ولا يعتمد حقه على users.manage. يعاد استخدام حارس auth والاتصال والمعاملة ومحرك القرار القائم، وتبقى منح الدورين للقراءة فقط. رُبطت الوحدة في app.ts وindex.ts وtrpc/router.ts، والواجهة في AuthScreen وApp والتنقل وPWA. helper الذاكرة مستورد من الاختبارات وتجربة مؤقتة حُذفت فقط، ولا يدخل تشغيل الإنتاج. العقد ونتائج C-118 وحدود التحقق والقبول في [وثيقة الدفعة](USER_PERMISSION_OVERRIDES.md) والخطة.
+
+## الفروع والأقسام — نطاق M3-02
+
+نُفذ server/modules/organization مفصولًا إلى store وrepository وservice وvalidation وroutes وerrors واختبارات الخدمة والمستودع وHTTP، وclient/src/modules/organization وفيه OrganizationScreen وNameForm وuseOrganization وlocale، مع shared/i18n/ar وen. المسار /organization يستعمل auth وtRPC والتنقل وPWA القائمين، والاتصال والمعاملة المركزيين. لا تعريفات فارغة لوحدات مستقبلية أو استعلامات في غلاف app. helper الذاكرة للاختبارات فقط، وحُذفت تجربة المتصفح المؤقتة بعد التحقق. العقود ونتائج C-122 وحدود النشر والقبول في ORGANIZATION_FOUNDATION.md والخطة.

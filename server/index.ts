@@ -5,6 +5,7 @@ import { openDatabase } from './core/database/connection.ts';
 import { createAuthStore } from './modules/auth/repository.ts';
 import { createUsersStore } from './modules/users/repository.ts';
 import { createPermissionOverridesStore } from './modules/permission-overrides/repository.ts';
+import { createOrganizationStore } from './modules/organization/repository.ts';
 
 try {
   const config = readRuntimeConfig(process.env);
@@ -18,6 +19,7 @@ try {
     authConfig: config.mode === 'connected' ? config.authConfig : undefined,
     usersStore: database ? createUsersStore(database) : undefined,
     permissionOverridesStore: database ? createPermissionOverridesStore(database) : undefined,
+    organizationStore: database ? createOrganizationStore(database) : undefined,
   });
   const listener = server.listen(config.port, config.host, () => {
     console.info(`Madar listening on ${config.host}:${config.port} (${config.mode})`);

@@ -50,7 +50,7 @@ test('offline navigation falls back but preserves real HTTP denial or unavailabi
   expect(await pending).toBe(unavailable);
 });
 
-test.each(['/users', '/permissions'])('protected navigation %s uses only the public offline page', async path => {
+test.each(['/users', '/permissions', '/organization'])('protected navigation %s uses only the public offline page', async path => {
   const w = worker();
   let pending!: Promise<unknown>;
   w.handlers.get('fetch')!({

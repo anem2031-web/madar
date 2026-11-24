@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-export function navigate(path: '/' | '/users' | '/permissions') {
+export function navigate(path: '/' | '/users' | '/permissions' | '/organization') {
   if (window.location.pathname === path) return;
   window.history.pushState(null, '', path);
   window.dispatchEvent(new PopStateEvent('popstate'));
