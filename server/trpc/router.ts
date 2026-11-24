@@ -11,24 +11,35 @@ import { OrganizationFault } from '../modules/organization/errors.ts';
 import { organizationRoute } from '../modules/organization/routes.ts';
 import { NumberingFault } from '../core/numbering/errors.ts';
 import { numberingSettingsRoute } from '../core/numbering/router.ts';
-import type { NumberingSettingsContext } from '../core/numbering/router.ts';
+import { AuditFault } from '../core/audit/errors.ts';
+import { auditRoute } from '../core/audit/router.ts';
+import type { AuditContext } from '../core/audit/router.ts';
+import { listInput as auditListInput, detailInput as auditDetailInput } from '../core/audit/validation.ts';
 import { createInput as numberingCreateInput, listInput as numberingListInput, updateInput as numberingUpdateInput } from '../core/numbering/validation.ts';
 import { createBranchInput, createDepartmentInput, listBranchesInput, listDepartmentsInput, renameBranchInput, renameDepartmentInput } from '../modules/organization/validation.ts';
 import { detailInput as overridesDetailInput, listInput as overridesListInput, saveInput as overridesSaveInput } from '../modules/permission-overrides/validation.ts';
+import { auditErrorCodes, authErrorCodes, numberingErrorCodes, organizationErrorCodes, overridesErrorCodes, usersErrorCodes } from '../../shared/errors/contracts.ts';
+import { formatPublicTRPCError, knownReason } from '../core/errors/public-error.ts';
+import { currentRequestId, requestIdFor } from '../core/errors/request-context.ts';
 
-const t = initTRPC.context<NumberingSettingsContext>().create({
-  errorFormatter({ shape, error }) {
-    return {
-      code: shape.code,
-      message: error.cause instanceof AuthFault || error.cause instanceof UsersFault || error.cause instanceof OverridesFault || error.cause instanceof OrganizationFault || error.cause instanceof NumberingFault ? error.cause.reason : shape.data.code,
-      data: { code: shape.data.code, httpStatus: shape.data.httpStatus,
-        ...((error.cause instanceof AuthFault || error.cause instanceof UsersFault || error.cause instanceof OverridesFault || error.cause instanceof OrganizationFault || error.cause instanceof NumberingFault) && error.cause.requestId ? { requestId: error.cause.requestId } : {}),
-      },
-    };
+const t = initTRPC.context<AuditContext>().create({
+  errorFormatter({ shape, error, ctx }) {
+    const reason = error.cause instanceof AuthFault ? knownReason(error.cause, authErrorCodes)
+      : error.cause instanceof UsersFault ? knownReason(error.cause, usersErrorCodes)
+      : error.cause instanceof OverridesFault ? knownReason(error.cause, overridesErrorCodes)
+      : error.cause instanceof OrganizationFault ? knownReason(error.cause, organizationErrorCodes)
+      : error.cause instanceof NumberingFault ? knownReason(error.cause, numberingErrorCodes)
+      : error.cause instanceof AuditFault ? knownReason(error.cause, auditErrorCodes) : undefined;
+    return formatPublicTRPCError({ shape, error, reason,
+      requestId: ctx ? requestIdFor(ctx.req, ctx.res) : currentRequestId() });
   },
 });
 
 export const appRouter = t.router({
+  audit: t.router({
+    list: t.procedure.input(auditListInput).query(({ ctx, input }) => auditRoute(ctx, (service, request) => service.list(request, input))),
+    detail: t.procedure.input(auditDetailInput).query(({ ctx, input }) => auditRoute(ctx, (service, request) => service.detail(request, input))),
+  }),
   auth: t.router({
     session: t.procedure.query(({ ctx }) => authRoute(ctx, (auth, request) => auth.session(request))),
     login: t.procedure.input(loginInput).mutation(({ ctx, input }) => authRoute(ctx, (auth, request) => auth.login(request, input))),

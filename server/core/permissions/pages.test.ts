@@ -7,13 +7,14 @@ const destinations = [
   { path: '/users', permission: 'users.manage' },
   { path: '/permissions', permission: 'permissions.manage_overrides' },
   { path: '/settings/numbering', permission: 'settings.manage' },
+  { path: '/audit', permission: 'audit.read' },
 ] as const;
 
 test('the registry defines only implemented destinations with explicit policy and deterministic priority', () => {
   expect(() => assertPageRegistry()).not.toThrow();
-  expect(registeredPages.map(page => page.path).sort()).toEqual(['/', '/organization', '/permissions', '/settings/numbering', '/users']);
+  expect(registeredPages.map(page => page.path).sort()).toEqual(['/', '/audit', '/organization', '/permissions', '/settings/numbering', '/users']);
   expect(getPage('/')).toMatchObject({ id: 'workspace', kind: 'workspace', requiredPermissions: [], landingPriority: null });
-  expect(destinations.map(destination => getPage(destination.path)!.landingPriority)).toEqual([10, 20, 30, 40]);
+  expect(destinations.map(destination => getPage(destination.path)!.landingPriority)).toEqual([10, 20, 30, 40, 50]);
   for (const destination of destinations) {
     const page = getPage(destination.path)!;
     expect(page).toMatchObject({ kind: 'protected', enabled: true, permissionMode: 'all', requiredPermissions: [destination.permission] });
@@ -77,7 +78,7 @@ test('unknown paths and untrusted return targets remain terminal rather than bec
 });
 
 test('unknown, write-only and unrelated permissions do not grant pages or force movement from an allowed page', () => {
-  const unrelated = ['unknown.permission', 'employees.update', 'employees.create', 'roles.manage', 'audit.read'];
+  const unrelated = ['unknown.permission', 'employees.update', 'employees.create', 'roles.manage'];
   expect(getAllowedLandingPages(unrelated)).toEqual([]);
   expect(resolvePageAccess({ pathname: '/users', session: { state: 'authenticated', permissions: unrelated } }).kind).toBe('no-access');
   const current = resolvePageAccess({ pathname: '/permissions', session: { state: 'authenticated', permissions: [...permissionCodes] } });

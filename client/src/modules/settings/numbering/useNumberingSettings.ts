@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CreateNumberingSeries, NumberingSeries, UpdateNumberingSeries } from '../../../../../shared/numbering/settings.ts';
 import { trpc } from '../../../lib/trpc.ts';
-import { requestReference } from '../../auth/access-failures.ts';
+import { readRequestFailure, requestReference } from '../../../lib/request-failure.ts';
+import { useRequestFailure } from '../../../lib/useRequestFailure.ts';
 import type { AccessFailureHandlers } from '../../auth/access-failures.ts';
 
 type ForegroundActions = { begin: () => boolean; end: (options?: { skipQueuedRefresh?: boolean }) => void };
@@ -12,8 +13,7 @@ const knownReasons = new Set([
   'AUTH_REQUIRED', 'AUTH_FORBIDDEN', 'AUTH_CSRF', 'AUTH_RATE_LIMITED', 'AUTH_UNAVAILABLE',
 ]);
 function reason(error: unknown, write: boolean) {
-  const message = error instanceof Error ? error.message : '';
-  return knownReasons.has(message) ? message : write ? 'NUMBERING_UNCERTAIN' : 'NUMBERING_UNAVAILABLE';
+  return readRequestFailure(error, knownReasons, write ? 'NUMBERING_UNCERTAIN' : 'NUMBERING_UNAVAILABLE', write).code;
 }
 async function timed<T>(call: (signal: AbortSignal) => Promise<T>) {
   const controller = new AbortController();
@@ -30,7 +30,7 @@ export function useNumberingSettings(accessHandlers: AccessFailureHandlers, fore
   const [history, setHistory] = useState<(string | undefined)[]>([]);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { error, errorRequestId, setError, relabelError } = useRequestFailure();
   const [notice, setNotice] = useState<Notice | null>(null);
   const [reviewRequired, setReviewRequired] = useState(false);
   const mounted = useRef(true);
@@ -64,7 +64,7 @@ export function useNumberingSettings(accessHandlers: AccessFailureHandlers, fore
       return true;
     } catch (failure) {
       if (mounted.current && current === generation.current) {
-        const message = reason(failure, false); setError(message); handleAccessFailure(message, 'page', failure);
+        const message = reason(failure, false); setError(message, failure); handleAccessFailure(message, 'page', failure);
       }
       return false;
     } finally {
@@ -89,12 +89,12 @@ export function useNumberingSettings(accessHandlers: AccessFailureHandlers, fore
       const outcome = await timed(operation);
       if (!mounted.current) return false;
       const refreshed = await apply(outcome);
-      if (mounted.current && !refreshed) { setError('NUMBERING_REFRESH_FAILED'); setReviewRequired(true); }
+      if (mounted.current && !refreshed) { relabelError('NUMBERING_REFRESH_FAILED'); setReviewRequired(true); }
       return true;
     } catch (failure) {
       if (!mounted.current) return false;
-      const message = reason(failure, true); setError(message);
-      if (['NUMBERING_UNCERTAIN', 'NUMBERING_UNAVAILABLE', 'AUTH_UNAVAILABLE', 'NUMBERING_CONFLICT', 'NUMBERING_LOCKED', 'NUMBERING_NOT_FOUND'].includes(message)) setReviewRequired(true);
+      const message = reason(failure, true); setError(message, failure);
+      if (['NUMBERING_UNCERTAIN', 'NUMBERING_UNAVAILABLE', 'AUTH_UNAVAILABLE', 'NUMBERING_CONFLICT', 'NUMBERING_LOCKED', 'NUMBERING_NOT_FOUND', 'CONFLICT'].includes(message)) setReviewRequired(true);
       handleAccessFailure(message, 'operation', failure);
       return false;
     } finally {
@@ -104,7 +104,7 @@ export function useNumberingSettings(accessHandlers: AccessFailureHandlers, fore
     }
   }
   return {
-    series, selected, calendarYear, loading, pending, error, notice, reviewRequired,
+    series, selected, calendarYear, loading, pending, error, errorRequestId, notice, reviewRequired,
     page: history.length + 1, hasPrevious: history.length > 0, hasNext: !!nextCursor,
     select: (value: NumberingSeries) => { if (!busy.current) { setSelected(value); setError(null); setNotice(null); } },
     clearFeedback: () => { if (!busy.current) { setError(null); setNotice(null); } },

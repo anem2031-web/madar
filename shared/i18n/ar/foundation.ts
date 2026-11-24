@@ -58,5 +58,4 @@ export default {
   accessConflictDescription: 'لم تتطابق نتيجة الطلب مع صلاحيات الجلسة بعد إعادة التحقق. أعد المحاولة يدويًا، أو تواصل مع مدير النظام إذا استمرت المشكلة.',
   notFoundHeading: 'الصفحة غير موجودة',
   notFoundDescription: 'تحقق من عنوان الصفحة أو عد إلى مساحة العمل.',
-  requestReference: 'مرجع الطلب',
 };

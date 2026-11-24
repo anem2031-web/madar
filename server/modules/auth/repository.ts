@@ -4,6 +4,7 @@ import { authThrottles, sessions, users } from '../../../database/schema/auth.ts
 import { rolePermissions, roles } from '../../../database/schema/permissions.ts';
 import { userPermissionOverrides } from '../../../database/schema/permission-overrides.ts';
 import type { DatabaseConnection, DatabaseTransaction } from '../../core/database/connection.ts';
+import { normalizeAuditEvent } from '../../core/audit/event.ts';
 import type { AuthSession, AuthStore, AuthTransaction, AuthUser } from './store.ts';
 
 export const sqlUtc = (date: Date) => date.toISOString().slice(0, 23).replace('T', ' ');
@@ -106,8 +107,9 @@ export function authTransaction(tx: DatabaseTransaction): AuthTransaction {
       return allowed;
     },
     async appendAudit(event) {
-      await tx.insert(auditOutbox).values({ ...event, occurredAt: sqlUtc(event.occurredAt),
-        nextAttemptAt: sqlUtc(event.occurredAt), deliveryState: 'pending', attemptCount: 0 });
+      const safe = normalizeAuditEvent(event);
+      await tx.insert(auditOutbox).values({ ...safe,
+        nextAttemptAt: safe.occurredAt, deliveryState: 'pending', attemptCount: 0 });
     },
   };
 }

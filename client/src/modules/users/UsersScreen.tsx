@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Language } from '../../i18n/locale.ts';
 import { userMessages } from './locale.ts';
+import { errorMessages, RequestFailure } from '../../components/feedback/RequestFailure.tsx';
 import type { UserLabels } from './locale.ts';
 import { useUsers } from './useUsers.ts';
 import type { ManagedRole, ManagedUser, UserAction } from './useUsers.ts';
@@ -95,8 +96,9 @@ export function UsersScreen({ language, actorUsername, verificationPending, acce
   const labels = userMessages[language];
   const accounts = useUsers(accessHandlers, onSelfResetResult, foregroundActions);
   const [selection, setSelection] = useState<Selection | null>(null);
-  const { users, roles, loading, pending, error, notice, secret } = accounts;
+  const { users, roles, loading, pending, error, notice, secret, reviewRequired } = accounts;
   const blocked = pending || verificationPending;
+  const writesBlocked = blocked || loading || reviewRequired;
 
   const select = (value: Selection) => { accounts.clearFeedback(); setSelection(value); };
   const submit = async (username: string, roleId: string, password: string) => {
@@ -113,15 +115,16 @@ export function UsersScreen({ language, actorUsername, verificationPending, acce
 
   return (
     <section className="users-content" aria-labelledby="users-heading">
-      <header className="users-heading-row"><div><h2 id="users-heading" className="card-title">{labels.heading}</h2><p className="card-description">{labels.description}</p></div><button type="button" className="primary-button users-add" disabled={blocked || loading} onClick={() => select({ kind: 'create' })}>{labels.addUser}</button></header>
+      <header className="users-heading-row"><div><h2 id="users-heading" className="card-title">{labels.heading}</h2><p className="card-description">{labels.description}</p></div><button type="button" className="primary-button users-add" disabled={writesBlocked} onClick={() => select({ kind: 'create' })}>{labels.addUser}</button></header>
       {notice && <p role="status" className="feedback feedback-success">{noticeLabel[notice]}</p>}
-      {error && <p role="alert" className="feedback feedback-error">{errorText(error, labels)}</p>}
+      {error && <RequestFailure message={errorText(error, labels)} code={error} requestId={accounts.errorRequestId} language={language} />}
+      {reviewRequired && <p className="mt-4 text-sm leading-7 text-muted" role="status">{errorMessages[language].reviewRequired}</p>}
       {secret && <TemporaryPasswordPanel username={secret.username} password={secret.password} labels={labels} onDismiss={accounts.dismissSecret} />}
-      {selection && <AccountForm key={selection.kind + (selection.kind === 'create' ? '' : selection.user.id)} selection={selection} roles={roles} labels={labels} pending={pending} disabled={blocked} actorUsername={actorUsername} onSubmit={submit} onCancel={() => setSelection(null)} selfReset={selection.kind === 'reset' && selection.user.username === actorUsername} />}
+      {selection && <AccountForm key={selection.kind + (selection.kind === 'create' ? '' : selection.user.id)} selection={selection} roles={roles} labels={labels} pending={pending} disabled={writesBlocked} actorUsername={actorUsername} onSubmit={submit} onCancel={() => setSelection(null)} selfReset={selection.kind === 'reset' && selection.user.username === actorUsername} />}
       <p className="mt-5 text-sm text-muted">{labels.selfActionsNote}</p>
       <div className="users-list-toolbar"><button type="button" className="control" disabled={blocked || loading} onClick={() => { setSelection(null); accounts.refresh(); }}>{labels.refresh}</button><p className="text-sm text-muted">{labels.page} {accounts.page.toLocaleString(language)}</p></div>
       {loading ? <p role="status" className="py-8 text-center text-muted">{labels.loading}</p> : users.length === 0 ? <p className="py-8 text-center text-muted">{labels.empty}</p> : (
-        <div className="users-table-wrapper"><table className="users-table"><thead><tr><th scope="col">{labels.username}</th><th scope="col">{labels.role}</th><th scope="col">{labels.status}</th><th scope="col">{labels.passwordState}</th><th scope="col">{labels.actions}</th></tr></thead><tbody>{users.map(user => <tr key={user.id}><th scope="row"><bdi>{user.username}</bdi></th><td>{roleName(roles.find(role => role.id === user.roleId), labels)}</td><td><span className={user.accountStatus === 'active' ? 'status-badge status-active' : 'status-badge status-disabled'}>{user.accountStatus === 'active' ? labels.active : labels.disabled}</span></td><td>{user.mustChangePassword ? labels.temporary : labels.permanent}</td><td><div className="users-actions"><button type="button" className="control" disabled={blocked || user.username === actorUsername} onClick={() => select({ kind: 'role', user })}>{labels.changeRole}</button><button type="button" className="control" disabled={blocked || user.accountStatus === 'disabled' || user.username === actorUsername} onClick={() => select({ kind: 'disable', user })}>{labels.disable}</button><button type="button" className="control" disabled={blocked} onClick={() => select({ kind: 'reset', user })}>{labels.resetPassword}</button></div></td></tr>)}</tbody></table></div>
+        <div className="users-table-wrapper"><table className="users-table"><thead><tr><th scope="col">{labels.username}</th><th scope="col">{labels.role}</th><th scope="col">{labels.status}</th><th scope="col">{labels.passwordState}</th><th scope="col">{labels.actions}</th></tr></thead><tbody>{users.map(user => <tr key={user.id}><th scope="row"><bdi>{user.username}</bdi></th><td>{roleName(roles.find(role => role.id === user.roleId), labels)}</td><td><span className={user.accountStatus === 'active' ? 'status-badge status-active' : 'status-badge status-disabled'}>{user.accountStatus === 'active' ? labels.active : labels.disabled}</span></td><td>{user.mustChangePassword ? labels.temporary : labels.permanent}</td><td><div className="users-actions"><button type="button" className="control" disabled={writesBlocked || user.username === actorUsername} onClick={() => select({ kind: 'role', user })}>{labels.changeRole}</button><button type="button" className="control" disabled={writesBlocked || user.accountStatus === 'disabled' || user.username === actorUsername} onClick={() => select({ kind: 'disable', user })}>{labels.disable}</button><button type="button" className="control" disabled={writesBlocked} onClick={() => select({ kind: 'reset', user })}>{labels.resetPassword}</button></div></td></tr>)}</tbody></table></div>
       )}
       <nav className="users-pagination" aria-label={labels.heading}><button type="button" className="control" disabled={blocked || loading || !accounts.hasPrevious} onClick={() => { setSelection(null); accounts.previous(); }}>{labels.previous}</button><button type="button" className="control" disabled={blocked || loading || !accounts.hasNext} onClick={() => { setSelection(null); accounts.next(); }}>{labels.next}</button></nav>
     </section>

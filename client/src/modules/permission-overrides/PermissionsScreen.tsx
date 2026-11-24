@@ -6,6 +6,7 @@ import type { PermissionCode } from '../../../../shared/permissions/catalog.ts';
 import type { Language } from '../../i18n/locale.ts';
 import { usePasswordPrivacy } from '../auth/password-privacy.ts';
 import { permissionLabelKeys, permissionMessages } from './locale.ts';
+import { RequestFailure } from '../../components/feedback/RequestFailure.tsx';
 import type { PermissionLabels } from './locale.ts';
 import { usePermissionOverrides } from './usePermissionOverrides.ts';
 import type { PermissionDetail, PermissionOverride } from './usePermissionOverrides.ts';
@@ -132,7 +133,7 @@ export function PermissionsScreen({ language, actorUsername, verificationPending
     <section className="w-full min-w-0" aria-labelledby="permissions-heading">
       <h2 id="permissions-heading" className="card-title">{labels.heading}</h2>
       <p className="card-description">{labels.description}</p>
-      {error && <p role="alert" className="feedback feedback-error">{errorText(error, labels)}</p>}
+      {error && <RequestFailure message={errorText(error, labels)} code={error} requestId={permissions.errorRequestId} language={language} />}
       {notice && <p role="status" className="feedback feedback-success">{labels[notice]}</p>}
       <div className="mt-7 grid min-w-0 gap-8 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
         <section className="min-w-0" aria-labelledby="permission-accounts-heading">

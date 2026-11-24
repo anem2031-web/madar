@@ -1,5 +1,8 @@
 import { TRPCError } from '@trpc/server';
 import { PasswordBusyError } from '../../core/auth/password.ts';
+import { authErrorCodes, overridesErrorCodes } from '../../../shared/errors/contracts.ts';
+import { knownReason } from '../../core/errors/public-error.ts';
+import { logTechnicalFailure } from '../../core/errors/technical-log.ts';
 import { AuthFault } from '../auth/errors.ts';
 import { authRequest } from '../auth/routes.ts';
 import type { UsersContext } from '../users/routes.ts';
@@ -16,9 +19,9 @@ export async function permissionOverridesRoute<T>(context: PermissionOverridesCo
     if (!context.permissionOverrides) throw new OverridesFault('OVERRIDES_UNAVAILABLE');
     return await work(context.permissionOverrides, request);
   } catch (error) {
-    const reason = error instanceof OverridesFault || error instanceof AuthFault ? error.reason
-      : error instanceof PasswordBusyError ? 'AUTH_RATE_LIMITED' : 'OVERRIDES_UNAVAILABLE';
-    if (reason === 'OVERRIDES_UNAVAILABLE') console.error(JSON.stringify({ event: 'permission_overrides_unavailable', requestId: request.requestId, code: 'OVERRIDES_STORE_FAILURE' }));
+    const reason = (error instanceof OverridesFault ? knownReason(error, overridesErrorCodes) : error instanceof AuthFault ? knownReason(error, authErrorCodes)
+      : error instanceof PasswordBusyError ? 'AUTH_RATE_LIMITED' : undefined) ?? 'OVERRIDES_UNAVAILABLE';
+    if (reason === 'OVERRIDES_UNAVAILABLE') logTechnicalFailure({ requestId: request.requestId, scope: 'permissions', operation: 'request', code: 'OVERRIDES_STORE_FAILURE', error });
     const code = reason === 'OVERRIDES_UNAVAILABLE' ? 'SERVICE_UNAVAILABLE'
       : reason === 'AUTH_REQUIRED' || reason === 'OVERRIDES_REAUTH_FAILED' ? 'UNAUTHORIZED'
       : reason === 'AUTH_FORBIDDEN' || reason === 'AUTH_CSRF' || reason === 'OVERRIDES_SELF_CHANGE' ? 'FORBIDDEN'

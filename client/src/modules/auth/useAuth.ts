@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { setCsrfToken, trpc } from '../../lib/trpc.ts';
+import { readRequestFailure } from '../../lib/request-failure.ts';
+import { useRequestFailure } from '../../lib/useRequestFailure.ts';
 
 export type SessionView = {
   state: 'anonymous' | 'password_change' | 'authenticated';
@@ -27,9 +29,8 @@ const knownErrors = new Set([
   'AUTH_CSRF', 'AUTH_INVALID_INPUT', 'AUTH_PASSWORD_POLICY', 'AUTH_PASSWORD_REUSED', 'AUTH_UNAVAILABLE',
 ]);
 
-function safeReason(error: unknown) {
-  const reason = error instanceof Error ? error.message : '';
-  return knownErrors.has(reason) ? reason : 'AUTH_UNCERTAIN';
+function safeReason(error: unknown, write = true) {
+  return readRequestFailure(error, knownErrors, write ? 'AUTH_UNCERTAIN' : 'AUTH_UNAVAILABLE', write).code;
 }
 
 async function withTimeout<T>(call: (signal: AbortSignal) => Promise<T>): Promise<T> {
@@ -43,7 +44,7 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { error, errorRequestId, setError } = useRequestFailure();
   const [notice, setNotice] = useState<'signedOut' | 'passwordChanged' | null>(null);
   const [readOutcome, setReadOutcome] = useState<SessionReadOutcome | null>(null);
   const generation = useRef(0);
@@ -105,9 +106,9 @@ export function useAuth() {
         accept(next);
         setReadOutcome({ sequence, status: trusted ? 'success' : 'failure', session: trusted });
       }
-    } catch {
+    } catch (failure) {
       if (mounted.current && current === generation.current) {
-        accept(null); setError('AUTH_UNAVAILABLE');
+        accept(null); setError(safeReason(failure, false), failure);
         setReadOutcome({ sequence, status: 'failure', session: null });
       }
     } finally {
@@ -218,7 +219,7 @@ export function useAuth() {
       if (!mounted.current) return;
       const reason = safeReason(failure);
       if (kind === 'logout' || reason === 'AUTH_UNCERTAIN' || reason === 'AUTH_UNAVAILABLE' || reason === 'AUTH_REQUIRED' || reason === 'AUTH_CSRF') accept(null);
-      setError(kind === 'logout' ? 'AUTH_LOGOUT_UNCERTAIN' : reason);
+      setError(kind === 'logout' ? 'AUTH_LOGOUT_UNCERTAIN' : reason, failure);
       setLoading(false);
     } finally {
       busy.current = false;
@@ -257,8 +258,8 @@ export function useAuth() {
       const current = generation.current;
       void withTimeout(signal => trpc.auth.activity.mutate(undefined, { signal })).then(next => {
         if (mounted.current && current === generation.current && sessionRef.current) accept(next);
-      }).catch(() => {
-        if (mounted.current && current === generation.current) { accept(null); setLoading(false); setError('AUTH_REQUIRED'); }
+      }).catch(failure => {
+        if (mounted.current && current === generation.current) { accept(null); setLoading(false); setError(safeReason(failure, false), failure); }
       }).finally(() => { reporting = false; });
     };
     window.addEventListener('pointerdown', reportActivity, { passive: true });
@@ -270,7 +271,7 @@ export function useAuth() {
   }, [session?.state, accept]);
 
   return {
-    session, loading, pending, verifying, error, notice, readOutcome, requestAccessRecheck, refresh, invalidateSession, beginForeground, endForeground,
+    session, loading, pending, verifying, error, errorRequestId, notice, readOutcome, requestAccessRecheck, refresh, invalidateSession, beginForeground, endForeground,
     login: (username: string, password: string) => mutate(signal => trpc.auth.login.mutate({ username, password }, { signal }), 'login'),
     changePassword: (currentPassword: string, newPassword: string) => mutate(signal => trpc.auth.changePassword.mutate({ currentPassword, newPassword }, { signal }), 'password'),
     logout: () => mutate(signal => trpc.auth.logout.mutate(undefined, { signal }), 'logout'),

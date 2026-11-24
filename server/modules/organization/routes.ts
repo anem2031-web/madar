@@ -1,4 +1,7 @@
 import { TRPCError } from '@trpc/server';
+import { authErrorCodes, organizationErrorCodes } from '../../../shared/errors/contracts.ts';
+import { knownReason } from '../../core/errors/public-error.ts';
+import { logTechnicalFailure } from '../../core/errors/technical-log.ts';
 import { AuthFault } from '../auth/errors.ts';
 import { authRequest } from '../auth/routes.ts';
 import type { AuthRequest } from '../auth/service.ts';
@@ -15,8 +18,8 @@ export async function organizationRoute<T>(context: OrganizationContext,
     if (!context.organization) throw new OrganizationFault('ORG_UNAVAILABLE');
     return await work(context.organization, request);
   } catch (error) {
-    const reason = error instanceof OrganizationFault || error instanceof AuthFault ? error.reason : 'ORG_UNAVAILABLE';
-    if (reason === 'ORG_UNAVAILABLE') console.error(JSON.stringify({ event: 'organization_unavailable', requestId: request.requestId, code: 'ORG_STORE_FAILURE' }));
+    const reason = (error instanceof OrganizationFault ? knownReason(error, organizationErrorCodes) : error instanceof AuthFault ? knownReason(error, authErrorCodes) : undefined) ?? 'ORG_UNAVAILABLE';
+    if (reason === 'ORG_UNAVAILABLE') logTechnicalFailure({ requestId: request.requestId, scope: 'organization', operation: 'request', code: 'ORG_STORE_FAILURE', error });
     const code = reason === 'ORG_UNAVAILABLE' ? 'SERVICE_UNAVAILABLE'
       : reason === 'AUTH_REQUIRED' ? 'UNAUTHORIZED'
       : reason === 'AUTH_FORBIDDEN' || reason === 'AUTH_CSRF' ? 'FORBIDDEN'

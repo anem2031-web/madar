@@ -1,0 +1,15 @@
+export default {
+  requestReference: 'Request reference',
+  invalidRequest: 'The request could not be accepted. Review the data and try again.',
+  requestTooLarge: 'The request is too large. Reduce the submitted data and try again.',
+  unsupportedMediaType: 'The request format could not be accepted. Reload the page and try again.',
+  notFound: 'The requested resource could not be found. Reload the page and check the address.',
+  methodNotAllowed: 'This request could not be performed. Reload the page and try again.',
+  rateLimited: 'Too many attempts. Wait a little and try again.',
+  sessionExpired: 'Please sign in again.',
+  forbidden: 'You do not have permission to perform this action.',
+  conflict: 'The data has changed. Reload it and review its state before trying again.',
+  serviceUnavailable: 'The connection could not complete right now. Check the connection and try again.',
+  requestFailed: 'The request could not be completed. Keep the request reference if shown and contact your system administrator if the problem continues.',
+  reviewRequired: 'Actions are temporarily paused. Refresh the list and review the account state before trying again.',
+};

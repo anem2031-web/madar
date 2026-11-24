@@ -55,11 +55,12 @@ test('account mutation transaction rolls back when its outbox write fails', asyn
     return write;
   });
   await expect(store.transaction(async tx => {
-    await tx.disableUser('target', 1, new Date('2026-11-23T10:00:00Z'));
-    await tx.appendAudit({ eventId: 'event-id', occurredAt: new Date('2026-11-23T10:00:00Z'),
-      actorUserId: 'actor', actorRoleId: 'role', actorRoleCode: 'system_admin', module: 'users',
-      action: 'users.disable', entityId: 'target', requestId: 'request-id', result: 'success', reasonCode: null });
+    await tx.disableUser('00000000-0000-4000-8000-000000000004', 1, new Date('2026-11-23T10:00:00Z'));
+    await tx.appendAudit({ eventId: '00000000-0000-4000-8000-000000000001', occurredAt: new Date('2026-11-23T10:00:00Z'),
+      actorUserId: '00000000-0000-4000-8000-000000000002', actorRoleId: '00000000-0000-4000-8000-000000000003', actorRoleCode: 'system_admin', module: 'users',
+      action: 'users.disable', entityId: '00000000-0000-4000-8000-000000000004', requestId: '00000000-0000-4000-8000-000000000005', result: 'success', reasonCode: null });
   })).rejects.toThrow();
   expect(calls.at(-1)?.sql).toBe('rollback');
+  expect(calls.some(call => call.sql.startsWith('insert into `audit_outbox`'))).toBe(true);
   expect(calls.some(call => call.sql === 'commit')).toBe(false);
 });

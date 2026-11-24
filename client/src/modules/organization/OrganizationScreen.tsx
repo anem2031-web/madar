@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { Language } from '../../i18n/locale.ts';
 import { NameForm } from './NameForm.tsx';
 import { organizationMessages } from './locale.ts';
+import { RequestFailure } from '../../components/feedback/RequestFailure.tsx';
 import type { OrganizationLabels } from './locale.ts';
 import { useOrganization } from './useOrganization.ts';
 import type { Branch, Department } from './useOrganization.ts';
@@ -49,7 +50,7 @@ export function OrganizationScreen({ language, canWrite, verificationPending, ac
       <h2 id="organization-heading" className="card-title">{labels.heading}</h2>
       <p className="card-description">{labels.description}</p>
       {!canWrite && <p className="mt-4 text-sm leading-7 text-muted">{labels.readOnly}</p>}
-      {error && <p className="feedback feedback-error" role="alert">{errorText(error, labels)}</p>}
+      {error && <RequestFailure message={errorText(error, labels)} code={error} requestId={organization.errorRequestId} language={language} />}
       {notice && <p className="feedback feedback-success" role="status">{labels[notice.kind]} {notice.name && <bdi className="break-words">{notice.name}</bdi>}</p>}
       {reviewRequired && <p className="mt-4 text-sm leading-7 text-muted" role="status">{labels.reviewRequired}</p>}
       <div className="mt-5 flex flex-wrap gap-3">

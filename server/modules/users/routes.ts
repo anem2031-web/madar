@@ -1,5 +1,8 @@
 import { TRPCError } from '@trpc/server';
 import { PasswordBusyError } from '../../core/auth/password.ts';
+import { authErrorCodes, usersErrorCodes } from '../../../shared/errors/contracts.ts';
+import { knownReason } from '../../core/errors/public-error.ts';
+import { logTechnicalFailure } from '../../core/errors/technical-log.ts';
 import { AuthFault } from '../auth/errors.ts';
 import { authRequest } from '../auth/routes.ts';
 import type { AuthContext } from '../auth/routes.ts';
@@ -15,9 +18,9 @@ export async function usersRoute<T>(context: UsersContext, work: (service: Users
     if (!context.users) throw new UsersFault('USERS_UNAVAILABLE');
     return await work(context.users, request);
   } catch (error) {
-    const reason = error instanceof UsersFault || error instanceof AuthFault ? error.reason
-      : error instanceof PasswordBusyError ? 'AUTH_RATE_LIMITED' : 'USERS_UNAVAILABLE';
-    if (reason === 'USERS_UNAVAILABLE') console.error(JSON.stringify({ event: 'users_unavailable', requestId: request.requestId, code: 'USERS_STORE_FAILURE' }));
+    const reason = (error instanceof UsersFault ? knownReason(error, usersErrorCodes) : error instanceof AuthFault ? knownReason(error, authErrorCodes)
+      : error instanceof PasswordBusyError ? 'AUTH_RATE_LIMITED' : undefined) ?? 'USERS_UNAVAILABLE';
+    if (reason === 'USERS_UNAVAILABLE') logTechnicalFailure({ requestId: request.requestId, scope: 'users', operation: 'request', code: 'USERS_STORE_FAILURE', error });
     const code = reason === 'USERS_UNAVAILABLE' ? 'SERVICE_UNAVAILABLE'
       : reason === 'AUTH_REQUIRED' || reason === 'USERS_REAUTH_FAILED' ? 'UNAUTHORIZED'
       : reason === 'AUTH_FORBIDDEN' || reason === 'AUTH_CSRF' || reason === 'USERS_SELF_CHANGE' ? 'FORBIDDEN'

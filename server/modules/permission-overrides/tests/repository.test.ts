@@ -59,12 +59,13 @@ test('an outbox failure rolls back override changes and session revocation toget
   });
   const now = new Date('2026-11-23T14:00:00Z');
   await expect(store.transaction(async tx => {
-    await tx.bumpAuthVersion('target-id', 1, now);
-    await tx.replaceOverrides('target-id', [{ permissionCode: 'audit.read', effect: 'deny' }], now);
-    await tx.revokeUserSessions('target-id', now);
-    await tx.appendAudit({ eventId: 'event-id', occurredAt: now, actorUserId: 'actor-id', actorRoleId: 'role-id',
-      actorRoleCode: 'system_admin', module: 'permissions', action: 'permissions.overrides.save', entityId: 'target-id',
-      requestId: 'request-id', result: 'success', reasonCode: null });
+    await tx.bumpAuthVersion('00000000-0000-4000-8000-000000000004', 1, now);
+    await tx.replaceOverrides('00000000-0000-4000-8000-000000000004', [{ permissionCode: 'audit.read', effect: 'deny' }], now);
+    await tx.revokeUserSessions('00000000-0000-4000-8000-000000000004', now);
+    await tx.appendAudit({ eventId: '00000000-0000-4000-8000-000000000001', occurredAt: now, actorUserId: '00000000-0000-4000-8000-000000000002', actorRoleId: '00000000-0000-4000-8000-000000000003',
+      actorRoleCode: 'system_admin', module: 'permissions', action: 'permissions.overrides.save', entityId: '00000000-0000-4000-8000-000000000004',
+      requestId: '00000000-0000-4000-8000-000000000005', result: 'success', reasonCode: null });
   })).rejects.toThrow();
   expect(calls.at(-1)?.sql).toBe('rollback'); expect(calls.some(call => call.sql === 'commit')).toBe(false);
+  expect(calls.some(call => call.sql.startsWith('insert into `audit_outbox`'))).toBe(true);
 });

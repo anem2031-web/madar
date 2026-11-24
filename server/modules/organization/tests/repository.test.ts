@@ -69,9 +69,9 @@ test('outbox failure rolls back organizational writes and entity version is boun
   const { store, calls } = recording(({ sql }) => { if (sql.startsWith('insert into `audit_outbox`')) throw new Error('Synthetic outbox failure'); return write; });
   const now = new Date('2026-11-23T14:00:00Z');
   await expect(store.transaction(async tx => {
-    await tx.renameBranch('branch-id', 1, 'Renamed', now);
-    await tx.appendAudit({ eventId: 'event-id', occurredAt: now, actorUserId: 'actor-id', actorRoleId: 'role-id', actorRoleCode: 'system_admin',
-      module: 'organization', action: 'organization.branches.rename', entityId: 'branch-id', entityVersion: 2, requestId: 'request-id', result: 'success', reasonCode: null,
+    await tx.renameBranch('00000000-0000-4000-8000-000000000004', 1, 'Renamed', now);
+    await tx.appendAudit({ eventId: '00000000-0000-4000-8000-000000000001', occurredAt: now, actorUserId: '00000000-0000-4000-8000-000000000002', actorRoleId: '00000000-0000-4000-8000-000000000003', actorRoleCode: 'system_admin',
+      module: 'organization', action: 'organization.branches.rename', entityId: '00000000-0000-4000-8000-000000000004', entityVersion: 2, requestId: '00000000-0000-4000-8000-000000000005', result: 'success', reasonCode: null,
       beforeValues: { name: 'Original', version: 1 }, afterValues: { name: 'Renamed', version: 2 }, metadata: { entityType: 'branch', changed: true } });
   })).rejects.toThrow();
   const insertion = calls.find(call => call.sql.startsWith('insert into `audit_outbox`'))!;

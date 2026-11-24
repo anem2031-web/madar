@@ -32,12 +32,12 @@ export type AuthAudit = {
   actorUserId: string | null;
   actorRoleId: string | null;
   actorRoleCode: string | null;
-  module: 'auth' | 'users' | 'permissions' | 'organization' | 'numbering';
+  module: 'auth' | 'users' | 'permissions' | 'organization' | 'numbering' | 'audit';
   action: string;
   entityId: string | null;
   entityVersion?: number;
   requestId: string;
-  result: 'success' | 'denied';
+  result: 'success' | 'denied' | 'failed';
   reasonCode: string | null;
   beforeValues?: Partial<{ roleId: string; accountStatus: string; mustChangePassword: boolean; authVersion: number; name: string; branchId: string; version: number;
     code: string; prefix: string; format: string; paddingWidth: number; resetPolicy: 'annual' | 'continuous'; enabled: boolean;
@@ -45,7 +45,7 @@ export type AuthAudit = {
   afterValues?: Partial<{ roleId: string; accountStatus: string; mustChangePassword: boolean; authVersion: number; name: string; branchId: string; version: number;
     code: string; prefix: string; format: string; paddingWidth: number; resetPolicy: 'annual' | 'continuous'; enabled: boolean;
     overrides: { permissionCode: string; effect: 'grant' | 'deny' }[] }>;
-  metadata?: { count?: number; changed?: boolean; entityType?: 'branch' | 'department' };
+  metadata?: { count?: number; changed?: boolean; entityType?: 'branch' | 'department'; filterTypes?: string[] };
 };
 
 export interface AuthTransaction {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { trpc } from '../../lib/trpc.ts';
-import { requestReference } from '../auth/access-failures.ts';
+import { readRequestFailure, requestReference } from '../../lib/request-failure.ts';
+import { useRequestFailure } from '../../lib/useRequestFailure.ts';
 import type { AccessFailureHandlers } from '../auth/access-failures.ts';
 
 export type ManagedUser = {
@@ -24,8 +25,7 @@ const knownReasons = new Set([
 ]);
 
 function reason(error: unknown, write: boolean) {
-  const message = error instanceof Error ? error.message : '';
-  return knownReasons.has(message) ? message : write ? 'USERS_UNCERTAIN' : 'USERS_UNAVAILABLE';
+  return readRequestFailure(error, knownReasons, write ? 'USERS_UNCERTAIN' : 'USERS_UNAVAILABLE', write).code;
 }
 
 async function timed<T>(call: (signal: AbortSignal) => Promise<T>) {
@@ -44,7 +44,8 @@ export function useUsers(accessHandlers: AccessFailureHandlers, onSelfResetResul
   const [history, setHistory] = useState<(string | undefined)[]>([]);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { error, errorRequestId, setError, relabelError } = useRequestFailure();
+  const [reviewRequired, setReviewRequired] = useState(false);
   const [notice, setNotice] = useState<UserAction | null>(null);
   const [secret, setSecret] = useState<{ username: string; password: string } | null>(null);
   const mounted = useRef(true);
@@ -90,7 +91,7 @@ export function useUsers(accessHandlers: AccessFailureHandlers, onSelfResetResul
     } catch (failure) {
       if (mounted.current && current === generation.current) {
         const message = reason(failure, false);
-        setError(message);
+        setError(message, failure);
         setRoles([]);
         handleAccessFailure(message, 'page', failure);
       }
@@ -118,7 +119,7 @@ export function useUsers(accessHandlers: AccessFailureHandlers, onSelfResetResul
   }, []);
 
   const mutate = useCallback(async (kind: UserAction, operation: (signal: AbortSignal) => Promise<Outcome>) => {
-    if (busy.current) return false;
+    if (busy.current || reviewRequired) return false;
     if (!foregroundRef.current.begin()) { setError('AUTH_REQUIRED'); return false; }
     busy.current = true;
     ++generation.current;
@@ -143,13 +144,14 @@ export function useUsers(accessHandlers: AccessFailureHandlers, onSelfResetResul
       }
       const refreshed = await load(kind === 'create' ? undefined : cursor);
       if (!mounted.current) return false;
-      if (!refreshed) setError('USERS_REFRESH_FAILED');
+      if (!refreshed) { relabelError('USERS_REFRESH_FAILED'); setReviewRequired(true); }
       if (kind === 'create') setHistory([]);
       return true;
     } catch (failure) {
       if (!mounted.current) return false;
       const message = reason(failure, true);
-      setError(message);
+      setError(message, failure);
+      if (['USERS_UNCERTAIN', 'USERS_UNAVAILABLE', 'AUTH_UNAVAILABLE', 'USERS_CONFLICT', 'CONFLICT'].includes(message)) setReviewRequired(true);
       handleAccessFailure(message, 'operation', failure);
       return false;
     } finally {
@@ -157,14 +159,14 @@ export function useUsers(accessHandlers: AccessFailureHandlers, onSelfResetResul
       foregroundRef.current.end();
       if (mounted.current) setPending(false);
     }
-  }, [cursor, handleAccessFailure, load]);
+  }, [cursor, handleAccessFailure, load, relabelError, reviewRequired, setError]);
 
   return {
-    users, roles, loading, pending, error, notice, secret, page: history.length + 1,
+    users, roles, loading, pending, error, errorRequestId, notice, secret, reviewRequired, page: history.length + 1,
     hasPrevious: history.length > 0, hasNext: !!nextCursor,
     dismissSecret: () => setSecret(null),
     clearFeedback: () => { setError(null); setNotice(null); setSecret(null); },
-    refresh: () => { if (!busy.current) { setSecret(null); void load(cursor); } },
+    refresh: async () => { if (!busy.current) { setSecret(null); if (await load(cursor)) setReviewRequired(false); } },
     next: () => {
       if (busy.current || !nextCursor) return;
       setSecret(null); setHistory(pages => [...pages, cursor]); void load(nextCursor);

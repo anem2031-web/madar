@@ -3,6 +3,7 @@ import type { NumberingSeries } from '../../../../../shared/numbering/settings.t
 import type { Language } from '../../../i18n/locale.ts';
 import type { AccessFailureHandlers } from '../../auth/access-failures.ts';
 import { numberingMessages } from './locale.ts';
+import { RequestFailure } from '../../../components/feedback/RequestFailure.tsx';
 import type { NumberingLabels } from './locale.ts';
 import { displayFormat, exampleNumber, SeriesForm } from './SeriesForm.tsx';
 import { useNumberingSettings } from './useNumberingSettings.ts';
@@ -54,7 +55,7 @@ export function NumberingScreen({ language, verificationPending, accessHandlers,
     <section className="w-full min-w-0" aria-labelledby="numbering-heading">
       <h2 id="numbering-heading" className="card-title">{labels.heading}</h2>
       <p className="card-description">{labels.description}</p>
-      {error && <p className="feedback feedback-error" role="alert">{errorText(error, labels)}</p>}
+      {error && <RequestFailure message={errorText(error, labels)} code={error} requestId={numbering.errorRequestId} language={language} />}
       {notice && <p className="feedback feedback-success" role="status">{labels[notice.kind]} {notice.code && <bdi>{notice.code}</bdi>}</p>}
       {reviewRequired && <p className="mt-4 text-sm leading-7 text-muted" role="status">{labels.reviewRequired}</p>}
       <div className="mt-5 flex flex-wrap gap-3">

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { trpc } from '../../lib/trpc.ts';
-import { requestReference } from '../auth/access-failures.ts';
+import { readRequestFailure, requestReference } from '../../lib/request-failure.ts';
+import { useRequestFailure } from '../../lib/useRequestFailure.ts';
 import type { AccessFailureHandlers } from '../auth/access-failures.ts';
 
 export type Branch = { id: string; name: string; version: number };
@@ -15,8 +16,7 @@ const knownReasons = new Set([
   'AUTH_REQUIRED', 'AUTH_FORBIDDEN', 'AUTH_CSRF', 'AUTH_RATE_LIMITED', 'AUTH_UNAVAILABLE',
 ]);
 function reason(error: unknown, write: boolean) {
-  const message = error instanceof Error ? error.message : '';
-  return knownReasons.has(message) ? message : write ? 'ORG_UNCERTAIN' : 'ORG_UNAVAILABLE';
+  return readRequestFailure(error, knownReasons, write ? 'ORG_UNCERTAIN' : 'ORG_UNAVAILABLE', write).code;
 }
 async function timed<T>(call: (signal: AbortSignal) => Promise<T>) {
   const controller = new AbortController();
@@ -31,7 +31,7 @@ export function useOrganization(accessHandlers: AccessFailureHandlers, foregroun
   const [loadingBranches, setLoadingBranches] = useState(true);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { error, errorRequestId, setError, relabelError } = useRequestFailure();
   const [notice, setNotice] = useState<Notice | null>(null);
   const [reviewRequired, setReviewRequired] = useState(false);
   const mounted = useRef(true);
@@ -70,7 +70,7 @@ export function useOrganization(accessHandlers: AccessFailureHandlers, foregroun
       return true;
     } catch (failure) {
       if (mounted.current && current === branchGeneration.current) {
-        const message = reason(failure, false); setError(message); handleAccessFailure(message, 'page', failure);
+        const message = reason(failure, false); setError(message, failure); handleAccessFailure(message, 'page', failure);
       }
       return false;
     } finally {
@@ -91,7 +91,7 @@ export function useOrganization(accessHandlers: AccessFailureHandlers, foregroun
       return true;
     } catch (failure) {
       if (mounted.current && current === departmentGeneration.current) {
-        const message = reason(failure, false); setError(message); handleAccessFailure(message, 'operation', failure);
+        const message = reason(failure, false); setError(message, failure); handleAccessFailure(message, 'operation', failure);
       }
       return false;
     } finally {
@@ -120,12 +120,12 @@ export function useOrganization(accessHandlers: AccessFailureHandlers, foregroun
       const outcome = await timed(operation);
       if (!mounted.current) return false;
       const refreshed = await apply(outcome);
-      if (mounted.current && !refreshed) { setError('ORG_REFRESH_FAILED'); setReviewRequired(true); }
+      if (mounted.current && !refreshed) { relabelError('ORG_REFRESH_FAILED'); setReviewRequired(true); }
       return true;
     } catch (failure) {
       if (!mounted.current) return false;
-      const message = reason(failure, true); setError(message);
-      if (['ORG_CONFLICT', 'ORG_UNCERTAIN', 'ORG_UNAVAILABLE', 'AUTH_UNAVAILABLE', 'ORG_BRANCH_NOT_FOUND', 'ORG_DEPARTMENT_NOT_FOUND'].includes(message)) setReviewRequired(true);
+      const message = reason(failure, true); setError(message, failure);
+      if (['ORG_CONFLICT', 'ORG_UNCERTAIN', 'ORG_UNAVAILABLE', 'AUTH_UNAVAILABLE', 'ORG_BRANCH_NOT_FOUND', 'ORG_DEPARTMENT_NOT_FOUND', 'CONFLICT'].includes(message)) setReviewRequired(true);
       handleAccessFailure(message, 'operation', failure);
       return false;
     } finally {
@@ -137,7 +137,7 @@ export function useOrganization(accessHandlers: AccessFailureHandlers, foregroun
 
   return {
     branches: branches.rows, departments: departments.rows, selectedBranch, loadingBranches, loadingDepartments,
-    pending, error, notice, reviewRequired,
+    pending, error, errorRequestId, notice, reviewRequired,
     branchPage: branches.history.length + 1, departmentPage: departments.history.length + 1,
     hasPreviousBranch: branches.history.length > 0, hasNextBranch: !!branches.nextCursor,
     hasPreviousDepartment: departments.history.length > 0, hasNextDepartment: !!departments.nextCursor,

@@ -68,11 +68,12 @@ test('outbox failure after a settings write rolls the transaction back', async (
   });
   await expect(store.transaction(async tx => {
     const now = new Date('2026-11-24T10:00:00Z');
-    await tx.updateSeries('series-id', 1, { prefix: 'Fsw', resetPolicy: 'annual', enabled: false }, 'actor', now);
-    await tx.appendAudit({ eventId: 'event-id', occurredAt: now, actorUserId: 'actor', actorRoleId: 'role', actorRoleCode: 'system_admin',
-      module: 'numbering', action: 'numbering.series.update', entityId: 'series-id', entityVersion: 2,
-      requestId: 'request-id', result: 'success', reasonCode: null });
+    await tx.updateSeries('00000000-0000-4000-8000-000000000004', 1, { prefix: 'Fsw', resetPolicy: 'annual', enabled: false }, '00000000-0000-4000-8000-000000000002', now);
+    await tx.appendAudit({ eventId: '00000000-0000-4000-8000-000000000001', occurredAt: now, actorUserId: '00000000-0000-4000-8000-000000000002', actorRoleId: '00000000-0000-4000-8000-000000000003', actorRoleCode: 'system_admin',
+      module: 'numbering', action: 'numbering.series.update', entityId: '00000000-0000-4000-8000-000000000004', entityVersion: 2,
+      requestId: '00000000-0000-4000-8000-000000000005', result: 'success', reasonCode: null });
   })).rejects.toThrow();
   expect(calls.at(-1)?.sql).toBe('rollback');
+  expect(calls.some(call => call.sql.startsWith('insert into `audit_outbox`'))).toBe(true);
   expect(calls.some(call => call.sql === 'commit')).toBe(false);
 });

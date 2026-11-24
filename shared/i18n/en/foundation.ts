@@ -58,5 +58,4 @@ export default {
   accessConflictDescription: 'The request result still did not match your session permissions after checking again. Retry manually, or contact your system administrator if the problem continues.',
   notFoundHeading: 'Page not found',
   notFoundDescription: 'Check the page address or return to your workspace.',
-  requestReference: 'Request reference',
 };

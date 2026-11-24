@@ -1,4 +1,7 @@
 import { TRPCError } from '@trpc/server';
+import { authErrorCodes, numberingErrorCodes } from '../../../shared/errors/contracts.ts';
+import { knownReason } from '../errors/public-error.ts';
+import { logTechnicalFailure } from '../errors/technical-log.ts';
 import { AuthFault } from '../../modules/auth/errors.ts';
 import { authRequest } from '../../modules/auth/routes.ts';
 import type { AuthRequest } from '../../modules/auth/service.ts';
@@ -15,8 +18,8 @@ export async function numberingSettingsRoute<T>(context: NumberingSettingsContex
     if (!context.numberingSettings) throw new NumberingFault('NUMBERING_UNAVAILABLE');
     return await work(context.numberingSettings, request);
   } catch (error) {
-    const reason = error instanceof NumberingFault || error instanceof AuthFault ? error.reason : 'NUMBERING_UNAVAILABLE';
-    if (reason === 'NUMBERING_UNAVAILABLE') console.error(JSON.stringify({ event: 'numbering_unavailable', requestId: request.requestId, code: 'NUMBERING_STORE_FAILURE' }));
+    const reason = (error instanceof NumberingFault ? knownReason(error, numberingErrorCodes) : error instanceof AuthFault ? knownReason(error, authErrorCodes) : undefined) ?? 'NUMBERING_UNAVAILABLE';
+    if (reason === 'NUMBERING_UNAVAILABLE') logTechnicalFailure({ requestId: request.requestId, scope: 'numbering', operation: 'request', code: 'NUMBERING_STORE_FAILURE', error });
     const code = reason === 'NUMBERING_UNAVAILABLE' ? 'SERVICE_UNAVAILABLE'
       : reason === 'AUTH_REQUIRED' ? 'UNAUTHORIZED'
       : reason === 'AUTH_FORBIDDEN' || reason === 'AUTH_CSRF' ? 'FORBIDDEN'

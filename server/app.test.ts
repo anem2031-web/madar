@@ -29,7 +29,7 @@ afterAll(async () => {
   await closed;
 });
 
-test.each(['/permissions', '/organization', '/settings/numbering'])('deep link %s serves the public shell while APIs and unknown routes retain their own responses', async path => {
+test.each(['/permissions', '/organization', '/settings/numbering', '/audit'])('deep link %s serves the public shell while APIs and unknown routes retain their own responses', async path => {
   const page = await fetch(`${origin}${path}`);
   expect(page.status).toBe(200);
   expect(page.headers.get('content-type')).toContain('text/html');
@@ -37,7 +37,9 @@ test.each(['/permissions', '/organization', '/settings/numbering'])('deep link %
   expect(await page.text()).toContain('<div id="root"></div>');
   const unknown = await fetch(`${origin}/not-a-page`);
   expect(unknown.status).toBe(404);
-  expect(await unknown.json()).toEqual({ code: 'NOT_FOUND' });
+  const unknownBody = await unknown.json();
+  expect(unknownBody).toEqual({ code: 'NOT_FOUND', messageKey: 'notFound', requestId: expect.stringMatching(/^[0-9a-f-]{36}$/) });
+  expect(unknown.headers.get('x-request-id')).toBe(unknownBody.requestId);
 });
 
 test('does not provide a simulated login when authentication storage is not configured', async () => {
@@ -49,9 +51,10 @@ test('does not expose diagnostics or cache API failures', async () => {
   const response = await fetch(`${origin}/api/trpc/doesNotExist`);
   expect(response.status).toBe(404);
   expect(response.headers.get('Cache-Control')).toBe('no-store');
-  expect(await response.json()).toEqual({
-    error: { message: 'NOT_FOUND', code: -32004, data: { code: 'NOT_FOUND', httpStatus: 404 } },
-  });
+  const body = await response.json();
+  expect(body).toEqual({ error: { message: 'NOT_FOUND', code: -32004,
+    data: { code: 'NOT_FOUND', httpStatus: 404, messageKey: 'notFound', requestId: expect.stringMatching(/^[0-9a-f-]{36}$/) } } });
+  expect(response.headers.get('x-request-id')).toBe(body.error.data.requestId);
 });
 
 test('responds with readiness only when its database check succeeds', async () => {

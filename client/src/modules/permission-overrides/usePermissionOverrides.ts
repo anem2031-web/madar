@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PermissionCode } from '../../../../shared/permissions/catalog.ts';
 import { trpc } from '../../lib/trpc.ts';
-import { requestReference } from '../auth/access-failures.ts';
+import { readRequestFailure, requestReference } from '../../lib/request-failure.ts';
+import { useRequestFailure } from '../../lib/useRequestFailure.ts';
 import type { AccessFailureHandlers } from '../auth/access-failures.ts';
 
 export type PermissionAccount = {
@@ -24,8 +25,7 @@ const knownReasons = new Set([
 ]);
 
 function reason(error: unknown, write: boolean) {
-  const message = error instanceof Error ? error.message : '';
-  return knownReasons.has(message) ? message : write ? 'OVERRIDES_UNCERTAIN' : 'OVERRIDES_UNAVAILABLE';
+  return readRequestFailure(error, knownReasons, write ? 'OVERRIDES_UNCERTAIN' : 'OVERRIDES_UNAVAILABLE', write).code;
 }
 
 async function timed<T>(call: (signal: AbortSignal) => Promise<T>) {
@@ -44,7 +44,7 @@ export function usePermissionOverrides(accessHandlers: AccessFailureHandlers, fo
   const [detail, setDetail] = useState<PermissionDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { error, errorRequestId, setError } = useRequestFailure();
   const [notice, setNotice] = useState<'saved' | 'unchanged' | null>(null);
   const [reviewRequired, setReviewRequired] = useState(false);
   const mounted = useRef(true);
@@ -85,7 +85,7 @@ export function usePermissionOverrides(accessHandlers: AccessFailureHandlers, fo
     } catch (failure) {
       if (mounted.current && current === listGeneration.current) {
         const message = reason(failure, false);
-        setError(message); handleAccessFailure(message, 'page', failure);
+        setError(message, failure); handleAccessFailure(message, 'page', failure);
       }
     } finally {
       if (mounted.current && current === listGeneration.current) setLoading(false);
@@ -104,7 +104,7 @@ export function usePermissionOverrides(accessHandlers: AccessFailureHandlers, fo
     } catch (failure) {
       if (mounted.current && current === detailGeneration.current) {
         const message = reason(failure, false);
-        setError(message); handleAccessFailure(message, 'operation', failure);
+        setError(message, failure); handleAccessFailure(message, 'operation', failure);
       }
     } finally {
       if (mounted.current && current === detailGeneration.current) setDetailLoading(false);
@@ -139,8 +139,8 @@ export function usePermissionOverrides(accessHandlers: AccessFailureHandlers, fo
     } catch (failure) {
       if (!mounted.current || current !== detailGeneration.current) return false;
       const message = reason(failure, true);
-      setError(message);
-      if (message === 'OVERRIDES_CONFLICT' || message === 'OVERRIDES_UNCERTAIN' || message === 'OVERRIDES_UNAVAILABLE' || message === 'AUTH_UNAVAILABLE') setReviewRequired(true);
+      setError(message, failure);
+      if (message === 'OVERRIDES_CONFLICT' || message === 'OVERRIDES_UNCERTAIN' || message === 'OVERRIDES_UNAVAILABLE' || message === 'AUTH_UNAVAILABLE' || message === 'CONFLICT') setReviewRequired(true);
       handleAccessFailure(message, 'operation', failure);
       return false;
     } finally {
@@ -151,7 +151,7 @@ export function usePermissionOverrides(accessHandlers: AccessFailureHandlers, fo
   }, [detail, handleAccessFailure, reviewRequired]);
 
   return {
-    users, loading, detail, selectedId, detailLoading, pending, error, notice, reviewRequired,
+    users, loading, detail, selectedId, detailLoading, pending, error, errorRequestId, notice, reviewRequired,
     page: history.length + 1, hasPrevious: history.length > 0, hasNext: !!nextCursor,
     select: (userId: string) => { if (!busy.current) void loadDetail(userId); },
     reloadDetail: () => { if (!busy.current && selectedId) void loadDetail(selectedId); },
