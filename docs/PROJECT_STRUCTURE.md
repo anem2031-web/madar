@@ -260,3 +260,9 @@ client/src/modules/users يحوي UsersScreen.tsx وuseUsers.ts وlocale.ts وTe
 ## الفروع والأقسام — نطاق M3-02
 
 نُفذ server/modules/organization مفصولًا إلى store وrepository وservice وvalidation وroutes وerrors واختبارات الخدمة والمستودع وHTTP، وclient/src/modules/organization وفيه OrganizationScreen وNameForm وuseOrganization وlocale، مع shared/i18n/ar وen. المسار /organization يستعمل auth وtRPC والتنقل وPWA القائمين، والاتصال والمعاملة المركزيين. لا تعريفات فارغة لوحدات مستقبلية أو استعلامات في غلاف app. helper الذاكرة للاختبارات فقط، وحُذفت تجربة المتصفح المؤقتة بعد التحقق. العقود ونتائج C-122 وحدود النشر والقبول في ORGANIZATION_FOUNDATION.md والخطة.
+
+## نطاق استكمال الحارس — D-069
+
+حُدد shared/permissions/pages.ts لسجل الصفحات وقرار الوصول النقي المشترك، مع بقاء كتالوج الإجراءات ومحرك المنح الخادمي الحاليين. client/src/modules/auth ينسق حراسة الصفحة والتحقق الفعلي من الجلسة وحوادث الرفض المحدودة؛ app/navigation يملك التحويل الأمني بالاستبدال. تستهلك App وAuthScreen ومسارات Express السجل بدل تكرار قوائم الوصول، وتختبر مطابقة PWA. اختبارات النواة/التكامل في server/core/permissions، دون استيراد مخازن الاختبار في الإنتاج. النطاق والتعاقد قبل التنفيذ في CENTRAL_GUARD_DESIGN.md؛ لا بناء سايدبار أو وسيط صلاحيات خارجي أو تغييرات قاعدة.
+
+نُفذ النطاق وفق C-131: usePageGuard.ts منسق القرار وإعادة التحقق المحدودة، وaccess-failures.ts عقد إبلاغ الوحدات عن رفض الصفحة مقابل العملية أو السجل، وProtectedPageContent.tsx خريطة مكونات شاملة حسب معرف الصفحة. AuthScreen يعرض النهايات ومساحة العمل وتسميات التنقل الشاملة، وuseAuth يتتبع نتائج قراءات جلسة فعلية ولا يضيف مخزن صلاحيات آخر. صفحات الوحدات تستعمل هذا العقد مع بقاء خادمها وفرض الصلاحيات فيه مستقلين. يمر build بفحص TypeScript، ويشغّل vite.config.ts فحص سلامة سجل الصفحات؛ pages.test.ts وguard-http.test.ts وpwa.test.ts تحرس عقود السجل والخادم والعامل. حُذفت تجربة المتصفح المؤقتة بعد التحقق؛ النتائج والحدود في CENTRAL_GUARD_DESIGN.md.

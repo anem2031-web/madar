@@ -52,4 +52,11 @@ export default {
   operationUncertain: 'We could not confirm the result. Check your session before trying the action again.',
   logoutUncertain: 'Account details have been hidden on this page, but sign-out could not be confirmed on the server. Try again when the connection returns.',
   requestFailed: 'The request could not be completed. Check your connection and try again.',
+  noPagesHeading: 'No pages are currently available to your account',
+  noPagesDescription: 'Contact your system administrator to review your account permissions. You can check again or sign out.',
+  accessConflictHeading: 'Page access could not be confirmed',
+  accessConflictDescription: 'The request result still did not match your session permissions after checking again. Retry manually, or contact your system administrator if the problem continues.',
+  notFoundHeading: 'Page not found',
+  notFoundDescription: 'Check the page address or return to your workspace.',
+  requestReference: 'Request reference',
 };

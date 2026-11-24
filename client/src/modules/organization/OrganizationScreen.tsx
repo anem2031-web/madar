@@ -1,3 +1,4 @@
+import type { AccessFailureHandlers } from '../auth/access-failures.ts';
 import { useState } from 'react';
 import type { Language } from '../../i18n/locale.ts';
 import { NameForm } from './NameForm.tsx';
@@ -17,12 +18,12 @@ function errorText(error: string, labels: OrganizationLabels) {
   return labels[keys[error] ?? 'requestFailed'];
 }
 
-export function OrganizationScreen({ language, canWrite, verificationPending, onSessionInvalid, foregroundActions }: {
-  language: Language; canWrite: boolean; verificationPending: boolean; onSessionInvalid: () => void;
+export function OrganizationScreen({ language, canWrite, verificationPending, accessHandlers, foregroundActions }: {
+  language: Language; canWrite: boolean; verificationPending: boolean; accessHandlers: AccessFailureHandlers;
   foregroundActions: { begin: () => boolean; end: (options?: { skipQueuedRefresh?: boolean }) => void };
 }) {
   const labels = organizationMessages[language];
-  const organization = useOrganization(onSessionInvalid, foregroundActions);
+  const organization = useOrganization(accessHandlers, foregroundActions);
   const [action, setAction] = useState<Action | null>(null);
   const { branches, departments, selectedBranch, loadingBranches, loadingDepartments, pending, error, notice, reviewRequired } = organization;
   const blocked = pending || verificationPending || loadingBranches || loadingDepartments;

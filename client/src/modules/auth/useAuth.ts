@@ -7,6 +7,7 @@ export type SessionView = {
   user?: { username: string; roleCode: string; permissions: string[] };
   expiresAt?: string;
 };
+export type SessionReadOutcome = { sequence: number; status: 'success' | 'failure'; session: SessionView | null };
 
 type RefreshMode = 'hard' | 'background';
 
@@ -44,6 +45,7 @@ export function useAuth() {
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<'signedOut' | 'passwordChanged' | null>(null);
+  const [readOutcome, setReadOutcome] = useState<SessionReadOutcome | null>(null);
   const generation = useRef(0);
   const busy = useRef(false);
   const foreground = useRef(false);
@@ -54,6 +56,7 @@ export function useAuth() {
   const mounted = useRef(true);
   const sessionRef = useRef<SessionView | null>(null);
   const activityDue = useRef(0);
+  const readSequence = useRef(0);
 
   const accept = useCallback((next: SessionView | null) => {
     const expired = !!next && next.state !== 'anonymous' && !unexpired(next);
@@ -83,6 +86,7 @@ export function useAuth() {
       return;
     }
     reading.current = true;
+    const sequence = ++readSequence.current;
     readAgain.current = null;
     const current = ++generation.current;
     readGeneration.current = current;
@@ -96,9 +100,16 @@ export function useAuth() {
     setError(null);
     try {
       const next = await withTimeout(signal => trpc.auth.session.query(undefined, { signal }));
-      if (mounted.current && current === generation.current) accept(next);
+      if (mounted.current && current === generation.current) {
+        const trusted = next.state === 'anonymous' || unexpired(next) ? next : null;
+        accept(next);
+        setReadOutcome({ sequence, status: trusted ? 'success' : 'failure', session: trusted });
+      }
     } catch {
-      if (mounted.current && current === generation.current) { accept(null); setError('AUTH_UNAVAILABLE'); }
+      if (mounted.current && current === generation.current) {
+        accept(null); setError('AUTH_UNAVAILABLE');
+        setReadOutcome({ sequence, status: 'failure', session: null });
+      }
     } finally {
       reading.current = false;
       if (mounted.current) {
@@ -112,6 +123,14 @@ export function useAuth() {
       }
     }
   }, [accept]);
+
+  const requestAccessRecheck = useCallback(() => {
+    const expected = readSequence.current + 1;
+    // A read that started before the denial cannot satisfy this recheck.
+    if (reading.current) readAgain.current = strongerRefresh(readAgain.current, 'background');
+    else if (pageIsVisible()) void refresh('background');
+    return expected;
+  }, [refresh]);
 
   const invalidateSession = useCallback(() => {
     ++generation.current;
@@ -251,7 +270,7 @@ export function useAuth() {
   }, [session?.state, accept]);
 
   return {
-    session, loading, pending, verifying, error, notice, refresh, invalidateSession, beginForeground, endForeground,
+    session, loading, pending, verifying, error, notice, readOutcome, requestAccessRecheck, refresh, invalidateSession, beginForeground, endForeground,
     login: (username: string, password: string) => mutate(signal => trpc.auth.login.mutate({ username, password }, { signal }), 'login'),
     changePassword: (currentPassword: string, newPassword: string) => mutate(signal => trpc.auth.changePassword.mutate({ currentPassword, newPassword }, { signal }), 'password'),
     logout: () => mutate(signal => trpc.auth.logout.mutate(undefined, { signal }), 'logout'),

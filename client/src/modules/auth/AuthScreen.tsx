@@ -4,14 +4,16 @@ import { messages } from '../../i18n/locale.ts';
 import type { Language } from '../../i18n/locale.ts';
 import { useAuth } from './useAuth.ts';
 import { navigate, usePathname } from '../../app/navigation.ts';
-import { UsersScreen } from '../users/UsersScreen.tsx';
 import { userMessages } from '../users/locale.ts';
 import { TemporaryPasswordPanel } from '../users/TemporaryPasswordPanel.tsx';
 import { usePasswordPrivacy } from './password-privacy.ts';
-import { OrganizationScreen } from '../organization/OrganizationScreen.tsx';
 import { organizationMessages } from '../organization/locale.ts';
-import { PermissionsScreen } from '../permission-overrides/PermissionsScreen.tsx';
 import { permissionMessages } from '../permission-overrides/locale.ts';
+
+import { getAllowedLandingPages } from '../../../../shared/permissions/pages.ts';
+import type { ProtectedPageId } from '../../../../shared/permissions/pages.ts';
+import { protectedPageComponents } from './ProtectedPageContent.tsx';
+import { usePageGuard } from './usePageGuard.ts';
 
 type Labels = typeof messages.ar;
 
@@ -101,8 +103,9 @@ export function AuthScreen({ language }: { language: Language }) {
   const organizationLabels = organizationMessages[language];
   const path = usePathname();
   const auth = useAuth();
+  const guard = usePageGuard(path, auth);
   const [selfResetResult, setSelfResetResult] = useState<{ username: string; password: string; path: string; expiresAt: number } | null>(null);
-  const { session, loading, pending, verifying, error, notice } = auth;
+  const { session, pending, verifying, error, notice } = auth;
   const blocked = pending || verifying;
   const verificationStatus = verifying ? <p role="status" className="mb-4 text-sm text-muted">{labels.checking}</p> : null;
   useEffect(() => {
@@ -139,60 +142,60 @@ export function AuthScreen({ language }: { language: Language }) {
       }} />
     </div>
   );
-  if (loading || (pending && !session)) return (
+  if (guard.decision.kind === 'checking' || guard.decision.kind === 'redirect' || (pending && !session)) return (
     <div className="state-panel" role="status" aria-live="polite">
       <span className="loading-ring" aria-hidden="true" /><h2 className="card-title">{pending ? labels.working : labels.checking}</h2><p className="text-muted">{labels.checkingDescription}</p>
     </div>
   );
-  if (!session) return (
+  if (guard.decision.kind === 'unavailable') return (
     <div className="state-panel">
       <span className="state-symbol" aria-hidden="true">!</span><h2 className="card-title">{labels.unavailable}</h2>
       <p className="text-muted" role="alert">{error ? errorLabel(error, labels) : labels.unavailableDescription}</p>
-      <button type="button" className="primary-button mt-5" disabled={pending} onClick={() => { void auth.refresh(); }}>{labels.retry}</button>
+      <button type="button" className="primary-button mt-5" disabled={pending} onClick={guard.retry}>{labels.retry}</button>
     </div>
   );
-  const role = session.user?.roleCode;
+  const pageLabels = {
+    organization: organizationLabels.openOrganization,
+    users: userLabels.openUsers,
+    permissions: permissionLabels.openPermissions,
+  } satisfies Record<ProtectedPageId, string>;
+  const allowedPages = getAllowedLandingPages(session?.user?.permissions ?? []);
+  if (guard.decision.kind === 'not-found') return (
+    <div className="state-panel">
+      <h2 className="card-title">{labels.notFoundHeading}</h2><p className="text-muted">{labels.notFoundDescription}</p>
+      <button type="button" className="control mt-5" disabled={blocked} onClick={() => navigate('/')}>{userLabels.back}</button>
+    </div>
+  );
+  if (guard.decision.kind === 'no-access' || guard.decision.kind === 'access-conflict') return (
+    <div className="state-panel">
+      <h2 className="card-title">{guard.decision.kind === 'no-access' ? labels.noPagesHeading : labels.accessConflictHeading}</h2>
+      <p className="text-muted" role="alert">{guard.decision.kind === 'no-access' ? labels.noPagesDescription : labels.accessConflictDescription}</p>
+      {guard.decision.kind === 'access-conflict' && guard.decision.requestId && <p className="field-hint mt-4">{labels.requestReference}: <bdi>{guard.decision.requestId}</bdi></p>}
+      <div className="mt-5 flex flex-wrap justify-center gap-3">
+        <button type="button" className="control" disabled={blocked} onClick={guard.retry}>{labels.retry}</button>
+        <button type="button" className="control" disabled={blocked} onClick={() => { void auth.logout(); }}>{labels.logout}</button>
+      </div>
+    </div>
+  );
+  const role = session?.user?.roleCode;
   const roleName = role === 'system_admin' ? labels.adminRole : role === 'hr' ? labels.hrRole : labels.assignedRole;
-  const canManageUsers = session.state === 'authenticated' && session.user?.permissions.includes('users.manage');
-  const canManageOverrides = session.state === 'authenticated' && session.user?.permissions.includes('permissions.manage_overrides');
-  const canReadOrganization = session.state === 'authenticated' && session.user?.permissions.includes('organization.read');
-  const canWriteOrganization = !!canReadOrganization && !!session.user?.permissions.includes('settings.manage');
-  if (session.state === 'authenticated' && path === '/organization') return (
-    <div className="w-full min-w-0">
-      <nav className="workspace-nav" aria-label={labels.workspace}>
-        <button type="button" className="control" onClick={() => navigate('/')} disabled={blocked}>{userLabels.back}</button>
-        <button type="button" className="control" onClick={() => { void auth.logout(); }} disabled={blocked}>{pending ? labels.working : labels.logout}</button>
-      </nav>
-      {verificationStatus}
-      {canReadOrganization
-        ? <OrganizationScreen key={session.user!.username} language={language} canWrite={canWriteOrganization} verificationPending={verifying} onSessionInvalid={() => { auth.invalidateSession(); void auth.refresh(); }} foregroundActions={{ begin: auth.beginForeground, end: auth.endForeground }} />
-        : <p role="alert" className="feedback feedback-error">{organizationLabels.forbidden}</p>}
-    </div>
-  );
-  if (session.state === 'authenticated' && path === '/permissions') return (
-    <div className="w-full min-w-0">
-      <nav className="workspace-nav" aria-label={labels.workspace}>
-        <button type="button" className="control" onClick={() => navigate('/')} disabled={blocked}>{userLabels.back}</button>
-        <button type="button" className="control" onClick={() => { void auth.logout(); }} disabled={blocked}>{pending ? labels.working : labels.logout}</button>
-      </nav>
-      {verificationStatus}
-      {canManageOverrides
-        ? <PermissionsScreen key={session.user!.username} language={language} actorUsername={session.user!.username} verificationPending={verifying} onSessionInvalid={() => { auth.invalidateSession(); void auth.refresh(); }} foregroundActions={{ begin: auth.beginForeground, end: auth.endForeground }} />
-        : <p role="alert" className="feedback feedback-error">{permissionLabels.forbidden}</p>}
-    </div>
-  );
-  if (session.state === 'authenticated' && path === '/users') return (
-    <div className="w-full min-w-0">
-      <nav className="workspace-nav" aria-label={labels.workspace}>
-        <button type="button" className="control" onClick={() => navigate('/')} disabled={blocked}>{userLabels.back}</button>
-        <button type="button" className="control" onClick={() => { void auth.logout(); }} disabled={blocked}>{pending ? labels.working : labels.logout}</button>
-      </nav>
-      {verificationStatus}
-      {canManageUsers
-        ? <UsersScreen key={session.user!.username} language={language} actorUsername={session.user!.username} verificationPending={verifying} onSessionInvalid={() => { auth.invalidateSession(); void auth.refresh(); }} onSelfResetResult={receiveSelfReset} foregroundActions={{ begin: auth.beginForeground, end: auth.endForeground }} />
-        : <p role="alert" className="feedback feedback-error">{userLabels.forbidden}</p>}
-    </div>
-  );
+  if (guard.decision.kind === 'render' && session?.state === 'authenticated' && session.user) {
+    const PageView = protectedPageComponents[guard.decision.page.id];
+    return (
+      <div className="w-full min-w-0">
+        <nav className="workspace-nav flex-wrap" aria-label={labels.workspace}>
+          <button type="button" className="control" onClick={() => navigate('/')} disabled={blocked}>{userLabels.back}</button>
+          {allowedPages.map(page => <a key={page.id} href={page.path} className="control" aria-current={page.path === path ? 'page' : undefined} aria-disabled={blocked || undefined} onClick={event => { event.preventDefault(); if (!blocked) navigate(page.path); }}>{pageLabels[page.id]}</a>)}
+          <button type="button" className="control" onClick={() => { void auth.logout(); }} disabled={blocked}>{pending ? labels.working : labels.logout}</button>
+        </nav>
+        {verificationStatus}
+        <PageView key={session.user.username + ':' + guard.decision.page.id} language={language} username={session.user.username} permissions={session.user.permissions}
+          verifying={verifying} accessHandlers={guard.accessHandlers} onSelfResetResult={receiveSelfReset}
+          foregroundActions={{ begin: auth.beginForeground, end: auth.endForeground }} />
+      </div>
+    );
+  }
+  if (!session) return null;
   return (
     <div className="auth-content">
       {verificationStatus}
@@ -204,10 +207,8 @@ export function AuthScreen({ language }: { language: Language }) {
           {notice && <p role="status" className="feedback feedback-success">{labels[notice]}</p>}
           {error && <p role="alert" className="feedback feedback-error">{errorLabel(error, labels)}</p>}
           <dl className="account-details"><div><dt>{labels.account}</dt><dd dir="auto">{session.user?.username}</dd></div><div><dt>{labels.role}</dt><dd>{roleName}</dd></div></dl>
-          <p className="workspace-note">{canManageUsers ? userLabels.adminWorkspace : labels.workspaceNote}</p>
-          {canManageUsers && <a href="/users" className="primary-button mt-5" aria-disabled={blocked || undefined} onClick={event => { event.preventDefault(); if (!blocked) navigate('/users'); }}>{userLabels.openUsers}</a>}
-          {canManageOverrides && <a href="/permissions" className="primary-button mt-3" aria-disabled={blocked || undefined} onClick={event => { event.preventDefault(); if (!blocked) navigate('/permissions'); }}>{permissionLabels.openPermissions}</a>}
-          {canReadOrganization && <a href="/organization" className="primary-button mt-3" aria-disabled={blocked || undefined} onClick={event => { event.preventDefault(); if (!blocked) navigate('/organization'); }}>{organizationLabels.openOrganization}</a>}
+          <p className="workspace-note">{labels.workspaceNote}</p>
+          {allowedPages.map(page => <a key={page.id} href={page.path} className="primary-button mt-3" aria-disabled={blocked || undefined} onClick={event => { event.preventDefault(); if (!blocked) navigate(page.path); }}>{pageLabels[page.id]}</a>)}
           <p className="field-hint mt-5">{labels.sessionNote}</p>
           <button type="button" className="control mt-6 w-full" disabled={blocked} onClick={() => { void auth.logout(); }}>{pending ? labels.working : labels.logout}</button>
         </>

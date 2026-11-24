@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { trpc } from '../../lib/trpc.ts';
+import { requestReference } from '../auth/access-failures.ts';
+import type { AccessFailureHandlers } from '../auth/access-failures.ts';
 
 export type Branch = { id: string; name: string; version: number };
 export type Department = Branch & { branchId: string };
@@ -22,7 +24,7 @@ async function timed<T>(call: (signal: AbortSignal) => Promise<T>) {
   try { return await call(controller.signal); } finally { window.clearTimeout(timer); }
 }
 
-export function useOrganization(onSessionInvalid: () => void, foregroundActions: ForegroundActions) {
+export function useOrganization(accessHandlers: AccessFailureHandlers, foregroundActions: ForegroundActions) {
   const [branches, setBranches] = useState<Page<Branch>>(emptyPage);
   const [departments, setDepartments] = useState<Page<Department>>(emptyPage);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
@@ -37,9 +39,10 @@ export function useOrganization(onSessionInvalid: () => void, foregroundActions:
   const branchGeneration = useRef(0);
   const departmentGeneration = useRef(0);
   const selectedRef = useRef<Branch | null>(null);
-  const invalidRef = useRef(onSessionInvalid);
+  const accessRef = useRef(accessHandlers);
+  const pageDenied = useRef(false);
   const foregroundRef = useRef(foregroundActions);
-  invalidRef.current = onSessionInvalid;
+  accessRef.current = accessHandlers;
   foregroundRef.current = foregroundActions;
 
   const clearDepartments = useCallback(() => {
@@ -47,11 +50,13 @@ export function useOrganization(onSessionInvalid: () => void, foregroundActions:
     selectedRef.current = null;
     setSelectedBranch(null); setDepartments(emptyPage()); setLoadingDepartments(false);
   }, []);
-  const handleSessionFailure = useCallback((failure: string) => {
+  const handleAccessFailure = useCallback((failure: string, source: 'page' | 'operation', original?: unknown) => {
+    if (failure === 'AUTH_FORBIDDEN' && source === 'operation') { accessRef.current.onActionForbidden(); return; }
     if (failure === 'AUTH_REQUIRED' || failure === 'AUTH_FORBIDDEN' || failure === 'AUTH_CSRF') {
       ++branchGeneration.current;
       clearDepartments(); setBranches(emptyPage()); setLoadingBranches(false); setNotice(null);
-      invalidRef.current();
+      if (failure === 'AUTH_FORBIDDEN') { pageDenied.current = true; accessRef.current.onReadForbidden(requestReference(original)); }
+      else accessRef.current.onSessionInvalid();
     }
   }, [clearDepartments]);
   const loadBranches = useCallback(async (cursor?: string, history?: PageHistory) => {
@@ -65,13 +70,13 @@ export function useOrganization(onSessionInvalid: () => void, foregroundActions:
       return true;
     } catch (failure) {
       if (mounted.current && current === branchGeneration.current) {
-        const message = reason(failure, false); setError(message); handleSessionFailure(message);
+        const message = reason(failure, false); setError(message); handleAccessFailure(message, 'page', failure);
       }
       return false;
     } finally {
       if (mounted.current && current === branchGeneration.current) setLoadingBranches(false);
     }
-  }, [handleSessionFailure]);
+  }, [handleAccessFailure]);
   const loadDepartments = useCallback(async (branch: Branch, cursor?: string, history?: PageHistory) => {
     const current = ++departmentGeneration.current;
     selectedRef.current = branch;
@@ -86,13 +91,13 @@ export function useOrganization(onSessionInvalid: () => void, foregroundActions:
       return true;
     } catch (failure) {
       if (mounted.current && current === departmentGeneration.current) {
-        const message = reason(failure, false); setError(message); handleSessionFailure(message);
+        const message = reason(failure, false); setError(message); handleAccessFailure(message, 'operation', failure);
       }
       return false;
     } finally {
       if (mounted.current && current === departmentGeneration.current) setLoadingDepartments(false);
     }
-  }, [handleSessionFailure]);
+  }, [handleAccessFailure]);
 
   useEffect(() => {
     mounted.current = true;
@@ -100,7 +105,7 @@ export function useOrganization(onSessionInvalid: () => void, foregroundActions:
     return () => {
       mounted.current = false;
       ++branchGeneration.current; ++departmentGeneration.current;
-      if (busy.current) invalidRef.current();
+      if (busy.current && !pageDenied.current) accessRef.current.onSessionInvalid();
     };
   }, [loadBranches]);
 
@@ -121,7 +126,7 @@ export function useOrganization(onSessionInvalid: () => void, foregroundActions:
       if (!mounted.current) return false;
       const message = reason(failure, true); setError(message);
       if (['ORG_CONFLICT', 'ORG_UNCERTAIN', 'ORG_UNAVAILABLE', 'AUTH_UNAVAILABLE', 'ORG_BRANCH_NOT_FOUND', 'ORG_DEPARTMENT_NOT_FOUND'].includes(message)) setReviewRequired(true);
-      handleSessionFailure(message);
+      handleAccessFailure(message, 'operation', failure);
       return false;
     } finally {
       busy.current = false;

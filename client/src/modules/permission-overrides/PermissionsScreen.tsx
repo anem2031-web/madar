@@ -1,3 +1,4 @@
+import type { AccessFailureHandlers } from '../auth/access-failures.ts';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { permissionCodes } from '../../../../shared/permissions/catalog.ts';
@@ -117,13 +118,13 @@ function PermissionEditor({ detail, labels, actorUsername, disabled, pending, re
   );
 }
 
-export function PermissionsScreen({ language, actorUsername, verificationPending, onSessionInvalid, foregroundActions }: {
+export function PermissionsScreen({ language, actorUsername, verificationPending, accessHandlers, foregroundActions }: {
   language: Language; actorUsername: string; verificationPending: boolean;
-  onSessionInvalid: () => void;
+  accessHandlers: AccessFailureHandlers;
   foregroundActions: { begin: () => boolean; end: (options?: { skipQueuedRefresh?: boolean }) => void };
 }) {
   const labels = permissionMessages[language];
-  const permissions = usePermissionOverrides(onSessionInvalid, foregroundActions);
+  const permissions = usePermissionOverrides(accessHandlers, foregroundActions);
   const { users, loading, detail, detailLoading, pending, selectedId, error, notice, reviewRequired } = permissions;
   const blocked = pending || verificationPending;
 

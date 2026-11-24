@@ -10,7 +10,7 @@
     "dev:server": "node --watch server/index.ts --api-only",
     "dev:client": "vite",
     "typecheck": "tsc --noEmit",
-    "build": "vite build && node scripts/build-server.mjs",
+    "build": "npm run typecheck && vite build && node scripts/build-server.mjs",
     "start": "node dist/server/index.mjs",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",

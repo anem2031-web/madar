@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { expect, test, vi } from 'vitest';
+import { registeredPagePaths, registeredPages } from '../shared/permissions/pages.ts';
 
 function worker() {
   const handlers = new Map<string, (event: any) => void>();
@@ -20,6 +21,15 @@ test('offline worker only stores its public offline page', async () => {
   w.handlers.get('install')!({ waitUntil: (promise: Promise<unknown>) => { pending = promise; } });
   await pending;
   expect(w.cache.add).toHaveBeenCalledExactlyOnceWith('/offline.html');
+});
+
+test('offline navigation whitelist exactly matches the page registry without stale extra paths', () => {
+  const source = readFileSync('client/public/sw.js', 'utf8');
+  const literalLists = [...source.matchAll(/(\[[^\]]*\])\s*\.includes\(\s*url\.pathname\s*\)/g)];
+  expect(literalLists).toHaveLength(1);
+  const paths: unknown = runInNewContext(literalLists[0][1]);
+  expect(Array.isArray(paths)).toBe(true);
+  expect([...(paths as string[])].sort()).toEqual([...registeredPagePaths].sort());
 });
 
 test('authentication, mutation, cross-origin and unknown routes bypass the offline worker', () => {
@@ -50,7 +60,7 @@ test('offline navigation falls back but preserves real HTTP denial or unavailabi
   expect(await pending).toBe(unavailable);
 });
 
-test.each(['/users', '/permissions', '/organization'])('protected navigation %s uses only the public offline page', async path => {
+test.each(registeredPages.filter(page => page.enabled).map(page => page.path))('registered navigation %s uses only the public offline page', async path => {
   const w = worker();
   let pending!: Promise<unknown>;
   w.handlers.get('fetch')!({

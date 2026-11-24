@@ -1,3 +1,4 @@
+import type { AccessFailureHandlers } from '../auth/access-failures.ts';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Language } from '../../i18n/locale.ts';
@@ -85,14 +86,14 @@ function AccountForm({ selection, roles, labels, pending, disabled, actorUsernam
   );
 }
 
-export function UsersScreen({ language, actorUsername, verificationPending, onSessionInvalid, onSelfResetResult, foregroundActions }: {
-  language: Language; actorUsername: string; onSessionInvalid: () => void;
+export function UsersScreen({ language, actorUsername, verificationPending, accessHandlers, onSelfResetResult, foregroundActions }: {
+  language: Language; actorUsername: string; accessHandlers: AccessFailureHandlers;
   verificationPending: boolean;
   onSelfResetResult: (username: string, password: string) => void;
   foregroundActions: { begin: () => boolean; end: (options?: { skipQueuedRefresh?: boolean }) => void };
 }) {
   const labels = userMessages[language];
-  const accounts = useUsers(onSessionInvalid, onSelfResetResult, foregroundActions);
+  const accounts = useUsers(accessHandlers, onSelfResetResult, foregroundActions);
   const [selection, setSelection] = useState<Selection | null>(null);
   const { users, roles, loading, pending, error, notice, secret } = accounts;
   const blocked = pending || verificationPending;

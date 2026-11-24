@@ -11,6 +11,7 @@ import { createPermissionOverridesService } from './modules/permission-overrides
 import type { PermissionOverridesStore } from './modules/permission-overrides/store.ts';
 import { createOrganizationService } from './modules/organization/service.ts';
 import type { OrganizationStore } from './modules/organization/store.ts';
+import { registeredPagePaths } from '../shared/permissions/pages.ts';
 
 type AppOptions = {
   clientDirectory?: string;
@@ -69,7 +70,7 @@ export function createApp({ clientDirectory, pingDatabase, authStore, authConfig
       maxAge: '1y',
       index: false,
     }));
-    app.get(['/', '/users', '/permissions', '/organization'], (_request, response) => {
+    app.get([...registeredPagePaths], (_request, response) => {
       response.set('Cache-Control', 'no-cache');
       response.sendFile(join(clientDirectory, 'index.html'), { cacheControl: false });
     });

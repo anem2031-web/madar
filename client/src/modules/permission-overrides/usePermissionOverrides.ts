@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PermissionCode } from '../../../../shared/permissions/catalog.ts';
 import { trpc } from '../../lib/trpc.ts';
+import { requestReference } from '../auth/access-failures.ts';
+import type { AccessFailureHandlers } from '../auth/access-failures.ts';
 
 export type PermissionAccount = {
   id: string; username: string; roleCode: string; accountStatus: 'active' | 'disabled'; authVersion: number;
@@ -32,7 +34,7 @@ async function timed<T>(call: (signal: AbortSignal) => Promise<T>) {
   try { return await call(controller.signal); } finally { window.clearTimeout(timer); }
 }
 
-export function usePermissionOverrides(onSessionInvalid: () => void, foregroundActions: ForegroundActions) {
+export function usePermissionOverrides(accessHandlers: AccessFailureHandlers, foregroundActions: ForegroundActions) {
   const [users, setUsers] = useState<PermissionAccount[]>([]);
   const [nextCursor, setNextCursor] = useState<string>();
   const [cursor, setCursor] = useState<string>();
@@ -49,17 +51,20 @@ export function usePermissionOverrides(onSessionInvalid: () => void, foregroundA
   const listGeneration = useRef(0);
   const detailGeneration = useRef(0);
   const busy = useRef(false);
-  const invalidRef = useRef(onSessionInvalid);
+  const accessRef = useRef(accessHandlers);
+  const pageDenied = useRef(false);
   const foregroundRef = useRef(foregroundActions);
-  invalidRef.current = onSessionInvalid;
+  accessRef.current = accessHandlers;
   foregroundRef.current = foregroundActions;
 
-  const handleSessionFailure = useCallback((failure: string) => {
+  const handleAccessFailure = useCallback((failure: string, source: 'page' | 'operation', original?: unknown) => {
+    if (failure === 'AUTH_FORBIDDEN' && source === 'operation') { accessRef.current.onActionForbidden(); return; }
     if (failure === 'AUTH_REQUIRED' || failure === 'AUTH_FORBIDDEN' || failure === 'AUTH_CSRF') {
       ++listGeneration.current; ++detailGeneration.current;
       setUsers([]); setDetail(null); setSelectedId(undefined); setNotice(null);
       setLoading(false); setDetailLoading(false); setReviewRequired(false);
-      invalidRef.current();
+      if (failure === 'AUTH_FORBIDDEN') { pageDenied.current = true; accessRef.current.onReadForbidden(requestReference(original)); }
+      else accessRef.current.onSessionInvalid();
     }
   }, []);
 
@@ -80,12 +85,12 @@ export function usePermissionOverrides(onSessionInvalid: () => void, foregroundA
     } catch (failure) {
       if (mounted.current && current === listGeneration.current) {
         const message = reason(failure, false);
-        setError(message); handleSessionFailure(message);
+        setError(message); handleAccessFailure(message, 'page', failure);
       }
     } finally {
       if (mounted.current && current === listGeneration.current) setLoading(false);
     }
-  }, [handleSessionFailure]);
+  }, [handleAccessFailure]);
 
   const loadDetail = useCallback(async (userId: string) => {
     const current = ++detailGeneration.current;
@@ -99,12 +104,12 @@ export function usePermissionOverrides(onSessionInvalid: () => void, foregroundA
     } catch (failure) {
       if (mounted.current && current === detailGeneration.current) {
         const message = reason(failure, false);
-        setError(message); handleSessionFailure(message);
+        setError(message); handleAccessFailure(message, 'operation', failure);
       }
     } finally {
       if (mounted.current && current === detailGeneration.current) setDetailLoading(false);
     }
-  }, [handleSessionFailure]);
+  }, [handleAccessFailure]);
 
   useEffect(() => {
     mounted.current = true;
@@ -112,7 +117,7 @@ export function usePermissionOverrides(onSessionInvalid: () => void, foregroundA
     return () => {
       mounted.current = false;
       ++listGeneration.current; ++detailGeneration.current;
-      if (busy.current) invalidRef.current();
+      if (busy.current && !pageDenied.current) accessRef.current.onSessionInvalid();
     };
   }, [loadList]);
 
@@ -136,14 +141,14 @@ export function usePermissionOverrides(onSessionInvalid: () => void, foregroundA
       const message = reason(failure, true);
       setError(message);
       if (message === 'OVERRIDES_CONFLICT' || message === 'OVERRIDES_UNCERTAIN' || message === 'OVERRIDES_UNAVAILABLE' || message === 'AUTH_UNAVAILABLE') setReviewRequired(true);
-      handleSessionFailure(message);
+      handleAccessFailure(message, 'operation', failure);
       return false;
     } finally {
       busy.current = false;
       foregroundRef.current.end();
       if (mounted.current) setPending(false);
     }
-  }, [detail, handleSessionFailure, reviewRequired]);
+  }, [detail, handleAccessFailure, reviewRequired]);
 
   return {
     users, loading, detail, selectedId, detailLoading, pending, error, notice, reviewRequired,

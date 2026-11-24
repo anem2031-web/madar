@@ -3,13 +3,14 @@ import { useEffect, useState } from 'react';
 import { applyLanguage, messages, readLanguage } from '../i18n/locale.ts';
 import { AuthScreen } from '../modules/auth/AuthScreen.tsx';
 import { usePathname } from './navigation.ts';
+import { getPage } from '../../../shared/permissions/pages.ts';
 
 export function App() {
   const [language, setLanguage] = useState(readLanguage);
   const labels = messages[language];
   const nextLanguage = language === 'ar' ? 'en' : 'ar';
   const pathname = usePathname();
-  const workspacePage = pathname === '/users' || pathname === '/permissions' || pathname === '/organization';
+  const workspacePage = getPage(pathname)?.layout === 'workspace';
 
   useEffect(() => applyLanguage(language), [language]);
 

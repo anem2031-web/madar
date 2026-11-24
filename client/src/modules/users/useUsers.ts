@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { trpc } from '../../lib/trpc.ts';
+import { requestReference } from '../auth/access-failures.ts';
+import type { AccessFailureHandlers } from '../auth/access-failures.ts';
 
 export type ManagedUser = {
   id: string;
@@ -32,7 +34,7 @@ async function timed<T>(call: (signal: AbortSignal) => Promise<T>) {
   try { return await call(controller.signal); } finally { window.clearTimeout(timer); }
 }
 
-export function useUsers(onSessionInvalid: () => void, onSelfResetResult: (username: string, password: string) => void, foregroundActions: {
+export function useUsers(accessHandlers: AccessFailureHandlers, onSelfResetResult: (username: string, password: string) => void, foregroundActions: {
   begin: () => boolean; end: (options?: { skipQueuedRefresh?: boolean }) => void;
 }) {
   const [users, setUsers] = useState<ManagedUser[]>([]);
@@ -48,17 +50,24 @@ export function useUsers(onSessionInvalid: () => void, onSelfResetResult: (usern
   const mounted = useRef(true);
   const generation = useRef(0);
   const busy = useRef(false);
-  const onInvalidRef = useRef(onSessionInvalid);
+  const accessRef = useRef(accessHandlers);
+  const pageDenied = useRef(false);
   const onSelfResetRef = useRef(onSelfResetResult);
   const foregroundRef = useRef(foregroundActions);
-  onInvalidRef.current = onSessionInvalid;
+  accessRef.current = accessHandlers;
   onSelfResetRef.current = onSelfResetResult;
   foregroundRef.current = foregroundActions;
 
-  const handleSessionFailure = useCallback((failure: string) => {
-    if (failure === 'AUTH_REQUIRED' || failure === 'AUTH_FORBIDDEN' || failure === 'AUTH_CSRF') {
+  const handleAccessFailure = useCallback((failure: string, source: 'page' | 'operation', original?: unknown) => {
+    if (failure === 'AUTH_FORBIDDEN') {
+      if (source === 'page') {
+        pageDenied.current = true; ++generation.current;
+        setUsers([]); setRoles([]); setSecret(null); setLoading(false);
+        accessRef.current.onReadForbidden(requestReference(original));
+      } else accessRef.current.onActionForbidden();
+    } else if (failure === 'AUTH_REQUIRED' || failure === 'AUTH_CSRF') {
       setUsers([]); setRoles([]); setSecret(null);
-      onInvalidRef.current();
+      accessRef.current.onSessionInvalid();
     }
   }, []);
 
@@ -83,13 +92,13 @@ export function useUsers(onSessionInvalid: () => void, onSelfResetResult: (usern
         const message = reason(failure, false);
         setError(message);
         setRoles([]);
-        handleSessionFailure(message);
+        handleAccessFailure(message, 'page', failure);
       }
       return false;
     } finally {
       if (mounted.current && current === generation.current) setLoading(false);
     }
-  }, [handleSessionFailure]);
+  }, [handleAccessFailure]);
 
   useEffect(() => {
     mounted.current = true;
@@ -98,7 +107,7 @@ export function useUsers(onSessionInvalid: () => void, onSelfResetResult: (usern
       mounted.current = false;
       ++generation.current;
       // Browser back/route changes during a write must not leave an old authenticated view behind.
-      if (busy.current) onInvalidRef.current();
+      if (busy.current && !pageDenied.current) accessRef.current.onSessionInvalid();
     };
   }, [load]);
 
@@ -124,7 +133,7 @@ export function useUsers(onSessionInvalid: () => void, onSelfResetResult: (usern
         if (outcome.temporaryPassword && document.visibilityState === 'visible') {
           onSelfResetRef.current(outcome.user.username, outcome.temporaryPassword);
         } else {
-          onInvalidRef.current();
+          accessRef.current.onSessionInvalid();
         }
         return true;
       }
@@ -141,14 +150,14 @@ export function useUsers(onSessionInvalid: () => void, onSelfResetResult: (usern
       if (!mounted.current) return false;
       const message = reason(failure, true);
       setError(message);
-      handleSessionFailure(message);
+      handleAccessFailure(message, 'operation', failure);
       return false;
     } finally {
       busy.current = false;
       foregroundRef.current.end();
       if (mounted.current) setPending(false);
     }
-  }, [cursor, handleSessionFailure, load]);
+  }, [cursor, handleAccessFailure, load]);
 
   return {
     users, roles, loading, pending, error, notice, secret, page: history.length + 1,
