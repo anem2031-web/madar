@@ -1,0 +1,2 @@
+# Keep this migration's recorded checksum identical on Windows and Linux.
+/database/migrations/0001_write_operation_receipts.sql text eol=lf

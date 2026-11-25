@@ -41,11 +41,13 @@ function ValueRows({ values, language, labels }: { values: AuditValues | null; l
   return rows.length ? <dl className="mt-3 grid min-w-0 gap-4">{rows.map(row => <div key={row.key} className="min-w-0"><dt className="text-xs leading-6 text-muted">{row.label}</dt><dd className="mt-1 min-w-0 break-words text-sm leading-7">{row.value}</dd></div>)}</dl> : <p className="mt-3 text-sm text-muted">{labels.noValues}</p>;
 }
 function MetadataRows({ metadata, language, labels }: { metadata: AuditMetadata | null; language: Language; labels: AuditLabels }) {
-  if (!metadata || (metadata.count === undefined && metadata.changed === undefined && metadata.entityType === undefined && !metadata.filterTypes?.length)) return <p className="mt-3 text-sm text-muted">{labels.noValues}</p>;
+  if (!metadata || (metadata.count === undefined && metadata.changed === undefined && metadata.operationId === undefined && metadata.replayed === undefined && metadata.entityType === undefined && !metadata.filterTypes?.length)) return <p className="mt-3 text-sm text-muted">{labels.noValues}</p>;
   const filterNames: Record<string, string> = { period: labels.period, actorUserId: labels.actorUserId, module: labels.module, result: labels.result };
   return <dl className="mt-3 grid min-w-0 gap-4">
     {metadata.count !== undefined && <div><dt className="text-xs text-muted">{labels.fieldCount}</dt><dd className="mt-1 text-sm">{numericValue(metadata.count, language, labels)}</dd></div>}
     {metadata.changed !== undefined && <div><dt className="text-xs text-muted">{labels.fieldChanged}</dt><dd className="mt-1 text-sm">{booleanValue(metadata.changed, labels)}</dd></div>}
+    {metadata.operationId !== undefined && <div className="min-w-0"><dt className="text-xs text-muted">{labels.fieldOperationId}</dt><dd className="mt-1 min-w-0 text-sm"><Identifier value={metadata.operationId} labels={labels} /></dd></div>}
+    {metadata.replayed !== undefined && <div><dt className="text-xs text-muted">{labels.fieldReplayed}</dt><dd className="mt-1 text-sm">{booleanValue(metadata.replayed, labels)}</dd></div>}
     {metadata.entityType !== undefined && <div><dt className="text-xs text-muted">{labels.fieldEntityType}</dt><dd className="mt-1 text-sm">{metadata.entityType === 'branch' ? labels.branch : metadata.entityType === 'department' ? labels.department : labels.unknown}</dd></div>}
     {metadata.filterTypes && <div><dt className="text-xs text-muted">{labels.fieldFilterTypes}</dt><dd className="mt-1 text-sm leading-7">{metadata.filterTypes.map(value => filterNames[value] ?? labels.unknown).join(language === 'ar' ? '، ' : ', ')}</dd></div>}
   </dl>;

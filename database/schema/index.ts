@@ -5,3 +5,4 @@ export { numberingCounters, numberingIssuances, numberingSeries } from './number
 export { branches, departments } from './organization.ts';
 export { userPermissionOverrides } from './permission-overrides.ts';
 export { permissions, rolePermissions, roles } from './permissions.ts';
+export { writeOperationReceipts } from './write-operations.ts';

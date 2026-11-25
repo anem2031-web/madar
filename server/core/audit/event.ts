@@ -8,6 +8,7 @@ export type AuditValues = Partial<{
 export type AuditMetadata = Partial<{
   count: number; changed: boolean; entityType: 'branch' | 'department'; filterTypes: string[];
   source: string; revokedSessions: number;
+  operationId: string; replayed: boolean;
 }>;
 export type NormalizedAuditEvent = {
   eventId: string; occurredAt: string; actorUserId: string | null; actorRoleId: string | null; actorRoleCode: string | null;
@@ -25,7 +26,7 @@ const eventKeys = ['eventId', 'occurredAt', 'actorUserId', 'actorRoleId', 'actor
   'entityId', 'entityVersion', 'requestId', 'result', 'reasonCode', 'beforeValues', 'afterValues', 'metadata'];
 const valueKeys = ['roleId', 'accountStatus', 'mustChangePassword', 'authVersion', 'name', 'branchId', 'version',
   'code', 'prefix', 'format', 'paddingWidth', 'resetPolicy', 'enabled', 'overrides'];
-const metadataKeys = ['count', 'changed', 'entityType', 'filterTypes', 'source', 'revokedSessions'];
+const metadataKeys = ['count', 'changed', 'entityType', 'filterTypes', 'source', 'revokedSessions', 'operationId', 'replayed'];
 const filterTypes = new Set(['period', 'actorUserId', 'module', 'result']);
 
 function invalid(): never { throw new AuditEventValidationError(); }
@@ -102,6 +103,8 @@ function metadata(input: unknown): AuditMetadata | null {
   for (const [key, entry] of Object.entries(value)) {
     if (key === 'count' || key === 'revokedSessions') result[key] = integer(entry);
     else if (key === 'changed') result.changed = boolean(entry);
+    else if (key === 'replayed') result.replayed = boolean(entry);
+    else if (key === 'operationId') result.operationId = uuid(entry);
     else if (key === 'entityType') result.entityType = entry === 'branch' || entry === 'department' ? entry : invalid();
     else if (key === 'source') result.source = typeof entry === 'string' && /^[a-z][a-z0-9_.-]{0,63}$/.test(entry) ? entry : invalid();
     else if (key === 'filterTypes') {

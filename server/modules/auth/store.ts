@@ -45,7 +45,8 @@ export type AuthAudit = {
   afterValues?: Partial<{ roleId: string; accountStatus: string; mustChangePassword: boolean; authVersion: number; name: string; branchId: string; version: number;
     code: string; prefix: string; format: string; paddingWidth: number; resetPolicy: 'annual' | 'continuous'; enabled: boolean;
     overrides: { permissionCode: string; effect: 'grant' | 'deny' }[] }>;
-  metadata?: { count?: number; changed?: boolean; entityType?: 'branch' | 'department'; filterTypes?: string[] };
+  metadata?: { count?: number; changed?: boolean; entityType?: 'branch' | 'department'; filterTypes?: string[];
+    operationId?: string; replayed?: boolean };
 };
 
 export interface AuthTransaction {

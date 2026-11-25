@@ -22,6 +22,11 @@ function version(value: unknown): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1 || value > 4_294_967_295) throw new OrganizationFault('ORG_INVALID_INPUT');
   return value;
 }
+function writeRecord(input: unknown, required: string[]) {
+  const value = record(input, required, ['operationId']);
+  if (!Object.hasOwn(value, 'operationId')) throw new OrganizationFault('ORG_CLIENT_UPDATE_REQUIRED');
+  return { value, operationId: identifier(value.operationId) };
+}
 export function listBranchesInput(input: unknown) {
   if (input === undefined) return {};
   const value = record(input, [], ['cursor']);
@@ -32,18 +37,18 @@ export function listDepartmentsInput(input: unknown) {
   return { branchId: identifier(value.branchId), ...(value.cursor === undefined ? {} : { cursor: identifier(value.cursor) }) };
 }
 export function createBranchInput(input: unknown) {
-  const value = record(input, ['name']);
-  return { name: name(value.name) };
+  const { value, operationId } = writeRecord(input, ['name']);
+  return { operationId, name: name(value.name) };
 }
 export function renameBranchInput(input: unknown) {
-  const value = record(input, ['branchId', 'expectedVersion', 'name']);
-  return { branchId: identifier(value.branchId), expectedVersion: version(value.expectedVersion), name: name(value.name) };
+  const { value, operationId } = writeRecord(input, ['branchId', 'expectedVersion', 'name']);
+  return { operationId, branchId: identifier(value.branchId), expectedVersion: version(value.expectedVersion), name: name(value.name) };
 }
 export function createDepartmentInput(input: unknown) {
-  const value = record(input, ['branchId', 'name']);
-  return { branchId: identifier(value.branchId), name: name(value.name) };
+  const { value, operationId } = writeRecord(input, ['branchId', 'name']);
+  return { operationId, branchId: identifier(value.branchId), name: name(value.name) };
 }
 export function renameDepartmentInput(input: unknown) {
-  const value = record(input, ['branchId', 'departmentId', 'expectedVersion', 'name']);
-  return { branchId: identifier(value.branchId), departmentId: identifier(value.departmentId), expectedVersion: version(value.expectedVersion), name: name(value.name) };
+  const { value, operationId } = writeRecord(input, ['branchId', 'departmentId', 'expectedVersion', 'name']);
+  return { operationId, branchId: identifier(value.branchId), departmentId: identifier(value.departmentId), expectedVersion: version(value.expectedVersion), name: name(value.name) };
 }

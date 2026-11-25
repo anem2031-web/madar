@@ -36,6 +36,8 @@ export default {
   branchNotFound: 'The requested branch is unavailable. Reload the lists.',
   departmentNotFound: 'The department is unavailable within the selected branch. Reload the lists.',
   conflict: 'The name changed while you were working. Reload the lists and review the current state before editing again.',
+  operationConflict: 'This save attempt cannot be used with the current details. Reload the lists and review the result before starting a new attempt.',
+  clientUpdateRequired: 'This page needs an update before saving. Reload the page to get the latest version.',
   forbidden: 'You do not have permission for this action.',
   sessionExpired: 'Your session expired or your permissions changed. Check your sign-in again.',
   csrfFailed: 'The request could not be verified. Check your session before trying again.',

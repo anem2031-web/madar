@@ -12,7 +12,7 @@ type AuditValueFields = {
   overrides: { permissionCode: string; effect: 'grant' | 'deny' }[];
 };
 export type AuditValues = { [Key in keyof AuditValueFields]?: AuditValueFields[Key] | null };
-export type AuditMetadata = { count?: number; changed?: boolean; entityType?: 'branch' | 'department';
+export type AuditMetadata = { count?: number; changed?: boolean; operationId?: string; replayed?: boolean; entityType?: 'branch' | 'department';
   filterTypes?: ('period' | 'actorUserId' | 'module' | 'result')[] };
 export type AuditEventSummary = {
   eventId: string; occurredAt: string; actorUserId: string | null; actorRoleId: string | null; actorRoleCode: string | null;

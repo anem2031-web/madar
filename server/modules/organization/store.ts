@@ -1,9 +1,10 @@
 import type { AuthStore, AuthTransaction } from '../auth/store.ts';
+import type { WriteOperationsTransaction } from '../../core/write-operations/store.ts';
 
 export type Branch = { id: string; name: string; version: number };
 export type Department = Branch & { branchId: string };
 
-export interface OrganizationTransaction extends AuthTransaction {
+export interface OrganizationTransaction extends AuthTransaction, WriteOperationsTransaction {
   listBranches(cursor: string | undefined, limit: number): Promise<Branch[]>;
   listDepartments(branchId: string, cursor: string | undefined, limit: number): Promise<Department[]>;
   getBranch(branchId: string): Promise<Branch | null>;

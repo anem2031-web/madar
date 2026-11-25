@@ -36,6 +36,16 @@ test('safe field allowlists reject injected secrets rather than silently strippi
   expect(() => normalizeAuditEvent({ ...source, beforeValues: { overrides: oversized } })).toThrow('AUDIT_UNSAFE_EVENT');
 });
 
+test('write replay audit metadata accepts only a UUID and boolean without widening the secret allowlist', () => {
+  const operationId = randomUUID();
+  const source = { ...event(), action: 'organization.branches.create.replay', metadata: { operationId, replayed: true, entityType: 'branch' } };
+  expect(normalizeAuditEvent(source).metadata).toEqual(source.metadata);
+  for (const metadata of [{ operationId: 'not-a-uuid', replayed: true }, { operationId, replayed: 'yes' },
+    { operationId, replayed: true, password: 'private' }]) {
+    expect(() => normalizeAuditEvent({ ...source, metadata })).toThrow(AuditEventValidationError);
+  }
+});
+
 test('full comparison preserves hidden permitted metadata and array ordering rather than comparing only a display projection', () => {
   const source = event();
   const list = [{ permissionCode: 'users.manage', effect: 'grant' }, { permissionCode: 'audit.read', effect: 'deny' }];

@@ -35,6 +35,7 @@ beforeEach(async () => {
     async listBranches() { return [{ ...branch }]; }, async getBranch(id) { return id === branch.id ? { ...branch } : null; },
     async listDepartments() { return []; }, async getDepartment() { return null; },
     insertBranch: unexpectedWrite, renameBranch: unexpectedWrite, insertDepartment: unexpectedWrite, renameDepartment: unexpectedWrite,
+    claimWriteOperation: unexpectedWrite, completeWriteOperation: unexpectedWrite, cancelWriteOperation: unexpectedWrite,
   })) };
   listener = createApp({ authStore: store, usersStore: store, organizationStore,
     authConfig: { origin: configuredOrigin, secret: 'synthetic-http-central-guard-secret-'.repeat(2) } }).listen(0, '127.0.0.1');
@@ -88,7 +89,7 @@ test('a denied page API remains JSON403 without an HTTP redirect or invalidating
 test('an action403 leaves an allowed read and the authenticated session usable without reaching a business write', async () => {
   const api = await client('HR');
   expect((await api.query('organization.listBranches')).response.status).toBe(200);
-  const rejected = await api.mutate('organization.createBranch', { name: 'Forbidden write' });
+  const rejected = await api.mutate('organization.createBranch', { operationId: randomUUID(), name: 'Forbidden write' });
   expect(rejected.response.status).toBe(403);
   expect(rejected.body.error.message).toBe('AUTH_FORBIDDEN');
   expect(rejected.response.headers.get('location')).toBeNull();

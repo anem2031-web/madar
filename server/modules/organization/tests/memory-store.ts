@@ -1,20 +1,23 @@
 import type { AuthAudit, AuthSession, AuthUser } from '../../auth/store.ts';
 import type { Branch, Department, OrganizationStore, OrganizationTransaction } from '../store.ts';
+import type { WriteOperationReceipt } from '../../../core/write-operations/store.ts';
 
 // Synthetic test/browser fixture only. Serialization is not a TiDB lock or optimizer model.
 export function createMemoryOrganizationStore(initialUsers: AuthUser[] = [], initialBranches: Branch[] = [], initialDepartments: Department[] = []) {
   type Data = {
     users: Map<string, AuthUser>; sessions: Map<string, AuthSession>; events: AuthAudit[];
     branches: Map<string, Branch>; departments: Map<string, Department>;
+    receipts: Map<string, WriteOperationReceipt>;
     throttles: Map<string, { count: number; expires: number }>;
   };
   let data: Data = { users: new Map(initialUsers.map(value => [value.id, structuredClone(value)])),
     branches: new Map(initialBranches.map(value => [value.id, structuredClone(value)])),
     departments: new Map(initialDepartments.map(value => [value.id, structuredClone(value)])),
-    sessions: new Map(), events: [], throttles: new Map() };
+    sessions: new Map(), events: [], throttles: new Map(), receipts: new Map() };
   let tail = Promise.resolve();
   let failAudit = false;
   let failWrite = false;
+  let failReceipt = false;
   let beforeTransaction: (() => void) | undefined;
   const afterWrite = () => { if (failWrite) throw new Error('Synthetic organization write failure.'); };
   const store: OrganizationStore = {
@@ -25,6 +28,7 @@ export function createMemoryOrganizationStore(initialUsers: AuthUser[] = [], ini
       try {
         beforeTransaction?.();
         const copy: Data = { users: structuredClone(data.users), branches: structuredClone(data.branches), departments: structuredClone(data.departments),
+          receipts: new Map([...data.receipts].map(([id, value]) => [id, { ...structuredClone(value), inputHash: Buffer.from(value.inputHash) }])),
           events: structuredClone(data.events), throttles: structuredClone(data.throttles),
           sessions: new Map([...data.sessions].map(([id, value]) => [id, { ...structuredClone(value), tokenHash: Buffer.from(value.tokenHash) }])) };
         const tx: OrganizationTransaction = {
@@ -57,6 +61,22 @@ export function createMemoryOrganizationStore(initialUsers: AuthUser[] = [], ini
             return allowed;
           },
           async appendAudit(event) { if (failAudit) throw new Error('Synthetic organization audit failure.'); copy.events.push(structuredClone(event)); },
+          async claimWriteOperation(value) {
+            if (!copy.receipts.has(value.operationId)) copy.receipts.set(value.operationId, { ...structuredClone(value), inputHash: Buffer.from(value.inputHash) });
+            const row = copy.receipts.get(value.operationId)!;
+            return { ...structuredClone(row), inputHash: Buffer.from(row.inputHash) };
+          },
+          async completeWriteOperation(operationId, reservationToken, response) {
+            if (response === null || response === undefined) throw new Error('Completed write operation response required.');
+            if (failReceipt) throw new Error('Synthetic write operation receipt completion failure.');
+            const row = copy.receipts.get(operationId);
+            if (!row || row.reservationToken !== reservationToken || row.response !== null) return false;
+            row.response = structuredClone(response); return true;
+          },
+          async cancelWriteOperation(operationId, reservationToken) {
+            const row = copy.receipts.get(operationId);
+            if (row?.reservationToken === reservationToken && row.response === null) copy.receipts.delete(operationId);
+          },
           async listBranches(cursor, limit) {
             return [...copy.branches.values()].sort((a, b) => a.id.localeCompare(b.id)).filter(value => !cursor || value.id > cursor).slice(0, limit).map(value => structuredClone(value));
           },
@@ -89,6 +109,8 @@ export function createMemoryOrganizationStore(initialUsers: AuthUser[] = [], ini
   };
   return { ...store, get users() { return data.users; }, get sessions() { return data.sessions; }, get events() { return data.events; },
     get branches() { return data.branches; }, get departments() { return data.departments; },
+    get receipts() { return data.receipts; },
     setAuditFailure(value: boolean) { failAudit = value; }, setWriteFailure(value: boolean) { failWrite = value; },
+    setReceiptFailure(value: boolean) { failReceipt = value; },
     setBeforeTransaction(callback?: () => void) { beforeTransaction = callback; } };
 }

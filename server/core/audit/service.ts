@@ -29,7 +29,7 @@ function detail(value: StoredAuditEvent): AuditEventDetail {
   const row = normalizeAuditEvent(value);
   const metadata: AuditMetadata | null = row.metadata ? {} : null;
   if (metadata && row.metadata) {
-    for (const key of ['count', 'changed', 'entityType', 'filterTypes'] as const) {
+    for (const key of ['count', 'changed', 'entityType', 'filterTypes', 'operationId', 'replayed'] as const) {
       if (Object.hasOwn(row.metadata, key)) Object.assign(metadata, { [key]: row.metadata[key] });
     }
   }

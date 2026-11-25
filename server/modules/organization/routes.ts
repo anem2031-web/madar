@@ -25,7 +25,7 @@ export async function organizationRoute<T>(context: OrganizationContext,
       : reason === 'AUTH_FORBIDDEN' || reason === 'AUTH_CSRF' ? 'FORBIDDEN'
       : reason === 'AUTH_RATE_LIMITED' ? 'TOO_MANY_REQUESTS'
       : reason === 'ORG_BRANCH_NOT_FOUND' || reason === 'ORG_DEPARTMENT_NOT_FOUND' ? 'NOT_FOUND'
-      : reason === 'ORG_CONFLICT' ? 'CONFLICT' : 'BAD_REQUEST';
+      : reason === 'ORG_CONFLICT' || reason === 'ORG_OPERATION_CONFLICT' ? 'CONFLICT' : 'BAD_REQUEST';
     const cause = reason.startsWith('AUTH_')
       ? new AuthFault(reason as AuthFault['reason'], request.requestId)
       : new OrganizationFault(reason as OrganizationFault['reason'], request.requestId);

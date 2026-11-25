@@ -13,7 +13,8 @@ type Action = { kind: 'createBranch' } | { kind: 'renameBranch'; branch: Branch 
 function errorText(error: string, labels: OrganizationLabels) {
   const keys: Record<string, keyof OrganizationLabels> = {
     ORG_INVALID_INPUT: 'invalidInput', ORG_BRANCH_NOT_FOUND: 'branchNotFound', ORG_DEPARTMENT_NOT_FOUND: 'departmentNotFound',
-    ORG_CONFLICT: 'conflict', ORG_UNAVAILABLE: 'requestFailed', ORG_UNCERTAIN: 'uncertain', ORG_REFRESH_FAILED: 'refreshFailed',
+    ORG_CONFLICT: 'conflict', ORG_OPERATION_CONFLICT: 'operationConflict', ORG_CLIENT_UPDATE_REQUIRED: 'clientUpdateRequired',
+    ORG_UNAVAILABLE: 'requestFailed', ORG_UNCERTAIN: 'uncertain', ORG_REFRESH_FAILED: 'refreshFailed',
     AUTH_REQUIRED: 'sessionExpired', AUTH_FORBIDDEN: 'forbidden', AUTH_CSRF: 'csrfFailed', AUTH_RATE_LIMITED: 'rateLimited', AUTH_UNAVAILABLE: 'requestFailed',
   };
   return labels[keys[error] ?? 'requestFailed'];
@@ -52,7 +53,8 @@ export function OrganizationScreen({ language, canWrite, verificationPending, ac
       {!canWrite && <p className="mt-4 text-sm leading-7 text-muted">{labels.readOnly}</p>}
       {error && <RequestFailure message={errorText(error, labels)} code={error} requestId={organization.errorRequestId} language={language} />}
       {notice && <p className="feedback feedback-success" role="status">{labels[notice.kind]} {notice.name && <bdi className="break-words">{notice.name}</bdi>}</p>}
-      {reviewRequired && <p className="mt-4 text-sm leading-7 text-muted" role="status">{labels.reviewRequired}</p>}
+      {reviewRequired && error !== 'ORG_CLIENT_UPDATE_REQUIRED'
+        && <p className="mt-4 text-sm leading-7 text-muted" role="status">{labels.reviewRequired}</p>}
       <div className="mt-5 flex flex-wrap gap-3">
         <button type="button" className="control" disabled={blocked} onClick={refresh}>{labels.refresh}</button>
         {canWrite && <button type="button" className="primary-button" disabled={writesBlocked} onClick={() => begin({ kind: 'createBranch' })}>{labels.addBranch}</button>}

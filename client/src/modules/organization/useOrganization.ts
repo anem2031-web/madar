@@ -13,6 +13,7 @@ type ForegroundActions = { begin: () => boolean; end: (options?: { skipQueuedRef
 const emptyPage = <T,>(): Page<T> => ({ rows: [], history: [] });
 const knownReasons = new Set([
   'ORG_INVALID_INPUT', 'ORG_BRANCH_NOT_FOUND', 'ORG_DEPARTMENT_NOT_FOUND', 'ORG_CONFLICT', 'ORG_UNAVAILABLE',
+  'ORG_CLIENT_UPDATE_REQUIRED', 'ORG_OPERATION_CONFLICT',
   'AUTH_REQUIRED', 'AUTH_FORBIDDEN', 'AUTH_CSRF', 'AUTH_RATE_LIMITED', 'AUTH_UNAVAILABLE',
 ]);
 function reason(error: unknown, write: boolean) {
@@ -109,7 +110,7 @@ export function useOrganization(accessHandlers: AccessFailureHandlers, foregroun
     };
   }, [loadBranches]);
 
-  async function mutate<T>(operation: (signal: AbortSignal) => Promise<T>, apply: (value: T) => Promise<boolean>) {
+  async function mutate<T>(operation: (signal: AbortSignal, operationId: string) => Promise<T>, apply: (value: T) => Promise<boolean>) {
     if (busy.current || reviewRequired) return false;
     if (!foregroundRef.current.begin()) { setError('AUTH_REQUIRED'); return false; }
     busy.current = true;
@@ -117,7 +118,8 @@ export function useOrganization(accessHandlers: AccessFailureHandlers, foregroun
     setLoadingBranches(false); setLoadingDepartments(false);
     setPending(true); setError(null); setNotice(null);
     try {
-      const outcome = await timed(operation);
+      const operationId = crypto.randomUUID();
+      const outcome = await timed(signal => operation(signal, operationId));
       if (!mounted.current) return false;
       const refreshed = await apply(outcome);
       if (mounted.current && !refreshed) { relabelError('ORG_REFRESH_FAILED'); setReviewRequired(true); }
@@ -125,7 +127,7 @@ export function useOrganization(accessHandlers: AccessFailureHandlers, foregroun
     } catch (failure) {
       if (!mounted.current) return false;
       const message = reason(failure, true); setError(message, failure);
-      if (['ORG_CONFLICT', 'ORG_UNCERTAIN', 'ORG_UNAVAILABLE', 'AUTH_UNAVAILABLE', 'ORG_BRANCH_NOT_FOUND', 'ORG_DEPARTMENT_NOT_FOUND', 'CONFLICT'].includes(message)) setReviewRequired(true);
+      if (['ORG_CONFLICT', 'ORG_OPERATION_CONFLICT', 'ORG_CLIENT_UPDATE_REQUIRED', 'ORG_UNCERTAIN', 'ORG_UNAVAILABLE', 'AUTH_UNAVAILABLE', 'ORG_BRANCH_NOT_FOUND', 'ORG_DEPARTMENT_NOT_FOUND', 'CONFLICT'].includes(message)) setReviewRequired(true);
       handleAccessFailure(message, 'operation', failure);
       return false;
     } finally {
@@ -170,22 +172,22 @@ export function useOrganization(accessHandlers: AccessFailureHandlers, foregroun
       if (busy.current || !selectedBranch || !departments.history.length) return;
       setNotice(null); void loadDepartments(selectedBranch, departments.history.at(-1), departments.history.slice(0, -1));
     },
-    createBranch: (name: string) => mutate(signal => trpc.organization.createBranch.mutate({ name }, { signal }), async result => {
+    createBranch: (name: string) => mutate((signal, operationId) => trpc.organization.createBranch.mutate({ operationId, name }, { signal }), async result => {
       setNotice({ kind: 'branchCreated', name: result.branch.name });
       clearDepartments();
       return (await Promise.all([loadBranches(undefined, []), loadDepartments(result.branch, undefined, [])])).every(Boolean);
     }),
-    renameBranch: (branch: Branch, name: string) => mutate(signal => trpc.organization.renameBranch.mutate({ branchId: branch.id, expectedVersion: branch.version, name }, { signal }), async result => {
+    renameBranch: (branch: Branch, name: string) => mutate((signal, operationId) => trpc.organization.renameBranch.mutate({ operationId, branchId: branch.id, expectedVersion: branch.version, name }, { signal }), async result => {
       setBranches(page => ({ ...page, rows: page.rows.map(row => row.id === result.branch.id ? result.branch : row) }));
       if (selectedRef.current?.id === result.branch.id) { selectedRef.current = result.branch; setSelectedBranch(result.branch); }
       setNotice({ kind: result.changed ? 'branchRenamed' : 'unchanged', name: result.changed ? result.branch.name : undefined });
       return true;
     }),
-    createDepartment: (branch: Branch, name: string) => mutate(signal => trpc.organization.createDepartment.mutate({ branchId: branch.id, name }, { signal }), async result => {
+    createDepartment: (branch: Branch, name: string) => mutate((signal, operationId) => trpc.organization.createDepartment.mutate({ operationId, branchId: branch.id, name }, { signal }), async result => {
       setNotice({ kind: 'departmentCreated', name: result.department.name });
       return loadDepartments(branch, undefined, []);
     }),
-    renameDepartment: (department: Department, name: string) => mutate(signal => trpc.organization.renameDepartment.mutate({ branchId: department.branchId, departmentId: department.id, expectedVersion: department.version, name }, { signal }), async result => {
+    renameDepartment: (department: Department, name: string) => mutate((signal, operationId) => trpc.organization.renameDepartment.mutate({ operationId, branchId: department.branchId, departmentId: department.id, expectedVersion: department.version, name }, { signal }), async result => {
       setDepartments(page => ({ ...page, rows: page.rows.map(row => row.id === result.department.id ? result.department : row) }));
       setNotice({ kind: result.changed ? 'departmentRenamed' : 'unchanged', name: result.changed ? result.department.name : undefined });
       return true;

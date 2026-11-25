@@ -4,7 +4,8 @@ export const usersErrorCodes = ['USERS_INVALID_INPUT', 'USERS_DUPLICATE_USERNAME
   'USERS_CONFLICT', 'USERS_ALREADY_DISABLED', 'USERS_SELF_CHANGE', 'USERS_REAUTH_FAILED', 'USERS_UNAVAILABLE'] as const;
 export const overridesErrorCodes = ['OVERRIDES_INVALID_INPUT', 'OVERRIDES_NOT_FOUND', 'OVERRIDES_CONFLICT', 'OVERRIDES_SELF_CHANGE',
   'OVERRIDES_REAUTH_FAILED', 'OVERRIDES_UNAVAILABLE'] as const;
-export const organizationErrorCodes = ['ORG_INVALID_INPUT', 'ORG_BRANCH_NOT_FOUND', 'ORG_DEPARTMENT_NOT_FOUND', 'ORG_CONFLICT', 'ORG_UNAVAILABLE'] as const;
+export const organizationErrorCodes = ['ORG_INVALID_INPUT', 'ORG_BRANCH_NOT_FOUND', 'ORG_DEPARTMENT_NOT_FOUND', 'ORG_CONFLICT', 'ORG_UNAVAILABLE',
+  'ORG_CLIENT_UPDATE_REQUIRED', 'ORG_OPERATION_CONFLICT'] as const;
 export const numberingErrorCodes = ['NUMBERING_INVALID_INPUT', 'NUMBERING_INVALID_PREFIX', 'NUMBERING_DUPLICATE_CODE', 'NUMBERING_DUPLICATE_PREFIX',
   'NUMBERING_NOT_FOUND', 'NUMBERING_CONFLICT', 'NUMBERING_LOCKED', 'NUMBERING_UNAVAILABLE'] as const;
 export const auditErrorCodes = ['AUDIT_INVALID_INPUT', 'AUDIT_NOT_FOUND', 'AUDIT_UNAVAILABLE'] as const;
@@ -34,7 +35,7 @@ export function messageKeyFor(code: PublicErrorCode): PublicErrorMessageKey {
   if (code === 'NOT_FOUND' || code.endsWith('_NOT_FOUND')) return 'notFound';
   if (code === 'CONFLICT' || code.endsWith('_CONFLICT') || code.includes('_DUPLICATE_') || code === 'NUMBERING_LOCKED' || code === 'USERS_ALREADY_DISABLED') return 'conflict';
   if (code === 'SERVICE_UNAVAILABLE' || code.endsWith('_UNAVAILABLE') || code === 'BAD_GATEWAY' || code === 'GATEWAY_TIMEOUT') return 'serviceUnavailable';
-  if (code === 'PARSE_ERROR' || code === 'BAD_REQUEST' || code.endsWith('_INVALID_INPUT') || code === 'NUMBERING_INVALID_PREFIX'
+  if (code === 'PARSE_ERROR' || code === 'BAD_REQUEST' || code.endsWith('_INVALID_INPUT') || code === 'NUMBERING_INVALID_PREFIX' || code === 'ORG_CLIENT_UPDATE_REQUIRED'
     || code === 'PRECONDITION_FAILED' || code === 'UNPROCESSABLE_CONTENT' || code === 'PRECONDITION_REQUIRED') return 'invalidRequest';
   return 'requestFailed';
 }

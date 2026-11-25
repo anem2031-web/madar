@@ -8,6 +8,13 @@
       "when": 1795360011508,
       "tag": "0000_initial_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1795605194621,
+      "tag": "0001_write_operation_receipts",
+      "breakpoints": true
     }
   ]
 }

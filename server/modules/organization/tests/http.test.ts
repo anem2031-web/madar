@@ -1,5 +1,7 @@
 import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
+import { request as httpRequest } from 'node:http';
+import express from 'express';
 import { afterEach, beforeAll, beforeEach, expect, test } from 'vitest';
 import { createApp } from '../../../app.ts';
 import { hashPassword } from '../../../core/auth/password.ts';
@@ -17,9 +19,12 @@ let passwordHash = '';
 let listener: ReturnType<ReturnType<typeof createApp>['listen']>;
 let origin: string;
 let store: ReturnType<typeof createMemoryOrganizationStore>;
+let dropNextCommittedResponse = false;
+let committedResponseDrops = 0;
 
 beforeAll(async () => { passwordHash = await hashPassword(password); });
 beforeEach(async () => {
+  dropNextCommittedResponse = false; committedResponseDrops = 0;
   const make = (username: string, roleCode: 'system_admin' | 'hr', overrides: AuthUser['overrides'] = [], temporary = false): AuthUser => ({
     id: randomUUID(), username, passwordHash, roleId: randomUUID(), roleCode, accountStatus: 'active',
     mustChangePassword: temporary, authVersion: 1, rolePermissions: [...initialRolePermissions[roleCode]], overrides,
@@ -30,8 +35,31 @@ beforeEach(async () => {
     make('WRITE_DENIED', 'system_admin', [{ permissionCode: 'settings.manage', effect: 'deny' }]),
     make('DELEGATED', 'hr', [{ permissionCode: 'settings.manage', effect: 'grant' }]),
   ], [branchOne, branchTwo], [departmentOne, departmentTwo]);
-  listener = createApp({ authStore: store, organizationStore: store,
-    authConfig: { origin: configuredOrigin, secret: 'synthetic-organization-http-secret-'.repeat(2) } }).listen(0, '127.0.0.1');
+  const app = express();
+  app.use((request, response, next) => {
+    if (!dropNextCommittedResponse || request.method !== 'POST' || !request.path.startsWith('/api/trpc/organization.')) { next(); return; }
+    // Simulate a lost success response, after the application transaction has committed.
+    const originalWrite = response.write; const originalEnd = response.end; const originalFlush = response.flushHeaders;
+    const chunks: any[][] = [];
+    (response as any).write = (...args: any[]) => { chunks.push(args); return true; };
+    response.flushHeaders = () => {};
+    (response as any).end = (...args: any[]) => {
+      response.write = originalWrite; response.end = originalEnd; response.flushHeaders = originalFlush;
+      const requestId = response.getHeader('x-request-id');
+      const committed = store.events.some(event => event.requestId === requestId && event.module === 'organization'
+        && event.result === 'success' && /\.(?:create|rename)$/.test(event.action) && event.metadata?.changed !== false);
+      if (dropNextCommittedResponse && response.statusCode === 200 && committed) {
+        dropNextCommittedResponse = false; committedResponseDrops++;
+        request.socket.destroy(); return response;
+      }
+      for (const chunk of chunks) (originalWrite as any).apply(response, chunk);
+      return (originalEnd as any).apply(response, args);
+    };
+    next();
+  });
+  app.use(createApp({ authStore: store, organizationStore: store,
+    authConfig: { origin: configuredOrigin, secret: 'synthetic-organization-http-secret-'.repeat(2) } }));
+  listener = app.listen(0, '127.0.0.1');
   await once(listener, 'listening');
   const address = listener.address();
   if (!address || typeof address === 'string') throw new Error('Missing fixture listener.');
@@ -59,7 +87,16 @@ async function client(username?: string) {
   };
   await send('auth.session');
   if (username) expect((await send('auth.login', { username, password }, true)).response.status).toBe(200);
-  return { query: (path: string, input?: unknown) => send(path, input),
+  const mutateWithoutRetry = (path: string, input: unknown) => new Promise<number | undefined>((resolve, reject) => {
+    const body = JSON.stringify(input);
+    const request = httpRequest(`${origin}/api/trpc/${path}`, { method: 'POST', agent: false,
+      headers: { cookie, origin: configuredOrigin, 'content-type': 'application/json', 'x-madar-csrf': csrf,
+        'content-length': Buffer.byteLength(body) } }, response => {
+      response.on('error', reject); response.resume(); response.on('end', () => resolve(response.statusCode));
+    });
+    request.on('error', reject); request.end(body);
+  });
+  return { query: (path: string, input?: unknown) => send(path, input), mutateWithoutRetry,
     mutate: (path: string, input: unknown, headers?: Record<string, string>) => send(path, input, true, headers) };
 }
 
@@ -68,8 +105,8 @@ test('direct reads and writes reject preauthentication, temporary sessions and a
     const api = await client(username);
     const results = [await api.query('organization.listBranches'),
       await api.query('organization.listDepartments', { branchId: branchOne.id }),
-      await api.mutate('organization.createBranch', { name: 'Must not save' }),
-      await api.mutate('organization.createDepartment', { branchId: branchOne.id, name: 'Must not save' })];
+      await api.mutate('organization.createBranch', { operationId: randomUUID(), name: 'Must not save' }),
+      await api.mutate('organization.createDepartment', { operationId: randomUUID(), branchId: branchOne.id, name: 'Must not save' })];
     for (const result of results) {
       expect(result.response.status).toBe(status);
       expect(result.response.headers.get('cache-control')).toBe('no-store');
@@ -92,12 +129,12 @@ test('HR reads only its selected branch departments while write grants and denia
   expect(departments.body.result.data.branch.id).toBe(branchOne.id);
   expect(departments.body.result.data.departments).toEqual([departmentOne]);
   expect(JSON.stringify(departments.body)).not.toContain(departmentTwo.id);
-  expect((await hr.mutate('organization.renameBranch', { branchId: branchOne.id, expectedVersion: 1, name: 'Blocked rename' })).response.status).toBe(403);
+  expect((await hr.mutate('organization.renameBranch', { operationId: randomUUID(), branchId: branchOne.id, expectedVersion: 1, name: 'Blocked rename' })).response.status).toBe(403);
   const denied = await client('WRITE_DENIED');
   expect((await denied.query('organization.listBranches')).response.status).toBe(200);
-  expect((await denied.mutate('organization.createBranch', { name: 'Blocked manager' })).response.status).toBe(403);
+  expect((await denied.mutate('organization.createBranch', { operationId: randomUUID(), name: 'Blocked manager' })).response.status).toBe(403);
   const delegated = await client('DELEGATED');
-  const created = await delegated.mutate('organization.createBranch', { name: 'Allowed delegated HR' });
+  const created = await delegated.mutate('organization.createBranch', { operationId: randomUUID(), name: 'Allowed delegated HR' });
   expect(created.response.status).toBe(200);
   expect(created.body.result.data.branch.name).toBe('Allowed delegated HR');
   expect(JSON.stringify([branches.body, departments.body, created.body, store.events])).not.toMatch(/passwordHash|scrypt\$|tokenHash/);
@@ -105,29 +142,29 @@ test('HR reads only its selected branch departments while write grants and denia
 
 test('HTTP saves normalize names, retain duplicate names, enforce versions and leave sessions intact', async () => {
   const api = await client('MANAGER');
-  const creation = await api.mutate('organization.createBranch', { name: '  فرع جديد  ' });
+  const creation = await api.mutate('organization.createBranch', { operationId: randomUUID(), name: '  فرع جديد  ' });
   expect(creation.response.status).toBe(200);
   const branch = creation.body.result.data.branch;
   expect(branch.name).toBe('فرع جديد');
   expect(branch.version).toBe(1);
-  const duplicate = await api.mutate('organization.createBranch', { name: branch.name });
+  const duplicate = await api.mutate('organization.createBranch', { operationId: randomUUID(), name: branch.name });
   expect(duplicate.response.status).toBe(200);
   expect(duplicate.body.result.data.branch.id).not.toBe(branch.id);
-  const renamed = await api.mutate('organization.renameBranch', { branchId: branch.id, expectedVersion: 1, name: 'New branch name' });
+  const renamed = await api.mutate('organization.renameBranch', { operationId: randomUUID(), branchId: branch.id, expectedVersion: 1, name: 'New branch name' });
   expect(renamed.response.status).toBe(200);
   expect(renamed.body.result.data).toEqual({ changed: true, branch: { ...branch, name: 'New branch name', version: 2 } });
-  const stale = await api.mutate('organization.renameBranch', { branchId: branch.id, expectedVersion: 1, name: 'Stale overwrite' });
+  const stale = await api.mutate('organization.renameBranch', { operationId: randomUUID(), branchId: branch.id, expectedVersion: 1, name: 'Stale overwrite' });
   expect(stale.response.status).toBe(409);
   expect(stale.body.error.message).toBe('ORG_CONFLICT');
-  const unchanged = await api.mutate('organization.renameBranch', { branchId: branch.id, expectedVersion: 2, name: '  New branch name  ' });
+  const unchanged = await api.mutate('organization.renameBranch', { operationId: randomUUID(), branchId: branch.id, expectedVersion: 2, name: '  New branch name  ' });
   expect(unchanged.response.status).toBe(200);
   expect(unchanged.body.result.data.changed).toBe(false);
   expect(unchanged.body.result.data.branch.version).toBe(2);
-  const createdDepartment = await api.mutate('organization.createDepartment', { branchId: branch.id, name: '  قسم جديد  ' });
+  const createdDepartment = await api.mutate('organization.createDepartment', { operationId: randomUUID(), branchId: branch.id, name: '  قسم جديد  ' });
   expect(createdDepartment.response.status).toBe(200);
   const department = createdDepartment.body.result.data.department;
   expect(department).toMatchObject({ branchId: branch.id, name: 'قسم جديد', version: 1 });
-  const renamedDepartment = await api.mutate('organization.renameDepartment', { branchId: branch.id, departmentId: department.id, expectedVersion: 1, name: 'Updated department' });
+  const renamedDepartment = await api.mutate('organization.renameDepartment', { operationId: randomUUID(), branchId: branch.id, departmentId: department.id, expectedVersion: 1, name: 'Updated department' });
   expect(renamedDepartment.response.status).toBe(200);
   expect(renamedDepartment.body.result.data.department).toMatchObject({ branchId: branch.id, name: 'Updated department', version: 2 });
   expect((await api.query('auth.session')).body.result.data.state).toBe('authenticated');
@@ -137,7 +174,7 @@ test('HTTP saves normalize names, retain duplicate names, enforce versions and l
 
 test('department rename cannot use a different valid branch and missing branch reads fail without leaking unrelated references', async () => {
   const api = await client('MANAGER');
-  const rejected = await api.mutate('organization.renameDepartment', { branchId: branchTwo.id, departmentId: departmentOne.id, expectedVersion: 1, name: 'Wrong branch rename' });
+  const rejected = await api.mutate('organization.renameDepartment', { operationId: randomUUID(), branchId: branchTwo.id, departmentId: departmentOne.id, expectedVersion: 1, name: 'Wrong branch rename' });
   expect(rejected.response.status).toBe(404);
   expect(rejected.body.error.message).toBe('ORG_DEPARTMENT_NOT_FOUND');
   expect(store.departments.get(departmentOne.id)).toEqual(departmentOne);
@@ -151,12 +188,12 @@ test('CSRF, GET mutations and unrecognized structural fields cannot save changes
   const api = await client('MANAGER');
   const rejectedHeaders: Record<string, string>[] = [{ origin: 'https://foreign.invalid' }, { 'x-madar-csrf': '' }];
   for (const headers of rejectedHeaders) {
-    const rejected = await api.mutate('organization.createBranch', { name: 'Must not save' }, headers);
+    const rejected = await api.mutate('organization.createBranch', { operationId: randomUUID(), name: 'Must not save' }, headers);
     expect(rejected.response.status).toBe(403);
     expect(rejected.body.error.message).toBe('AUTH_CSRF');
   }
   for (const input of [{ name: 'Injected branch', version: 99 }, { name: '  ' }, { name: 'Injected branch', settings: { secret: password } }]) {
-    const invalid = await api.mutate('organization.createBranch', input);
+    const invalid = await api.mutate('organization.createBranch', { operationId: randomUUID(), ...input });
     expect(invalid.response.status).toBe(400);
     expect(JSON.stringify(invalid.body)).not.toContain(password);
   }
@@ -169,8 +206,8 @@ test('failed audit or writes return safe no-store errors and roll back creation 
   for (const failure of ['audit', 'write'] as const) {
     if (failure === 'audit') store.setAuditFailure(true); else store.setWriteFailure(true);
     try {
-      const results = [await api.mutate('organization.createBranch', { name: 'Rollback branch' }),
-        await api.mutate('organization.renameDepartment', { branchId: branchOne.id, departmentId: departmentOne.id, expectedVersion: 1, name: 'Rollback department' })];
+      const results = [await api.mutate('organization.createBranch', { operationId: randomUUID(), name: 'Rollback branch' }),
+        await api.mutate('organization.renameDepartment', { operationId: randomUUID(), branchId: branchOne.id, departmentId: departmentOne.id, expectedVersion: 1, name: 'Rollback department' })];
       for (const rejected of results) {
         expect(rejected.response.status).toBe(503);
         expect(rejected.response.headers.get('cache-control')).toBe('no-store');
@@ -184,4 +221,87 @@ test('failed audit or writes return safe no-store errors and roll back creation 
     } finally { store.setAuditFailure(false); store.setWriteFailure(false); }
   }
   expect((await api.query('auth.session')).body.result.data.state).toBe('authenticated');
+});
+
+test.each(['createBranch', 'renameBranch', 'createDepartment', 'renameDepartment'] as const)('HTTP %s requires a current client key and replays one committed result', async operation => {
+  const api = await client('MANAGER');
+  const payload = operation === 'createBranch' ? { name: 'HTTP protected branch' }
+    : operation === 'renameBranch' ? { branchId: branchOne.id, expectedVersion: 1, name: 'HTTP protected rename' }
+    : operation === 'createDepartment' ? { branchId: branchOne.id, name: 'HTTP protected department' }
+    : { branchId: branchOne.id, departmentId: departmentOne.id, expectedVersion: 1, name: 'HTTP protected department rename' };
+  const oldClient = await api.mutate(`organization.${operation}`, payload);
+  expect(oldClient.response.status).toBe(400);
+  expect(oldClient.body.error.message).toBe('ORG_CLIENT_UPDATE_REQUIRED');
+  expect(oldClient.response.headers.get('cache-control')).toBe('no-store');
+  expect(oldClient.body).not.toHaveProperty('result');
+  expect(store.receipts.size).toBe(0); expect(store.branches.size).toBe(2); expect(store.departments.size).toBe(2);
+  const input = { ...payload, operationId: randomUUID() };
+  const first = await api.mutate(`organization.${operation}`, input);
+  const replay = await api.mutate(`organization.${operation}`, input);
+  expect(first.response.status).toBe(200); expect(replay.response.status).toBe(200);
+  expect(replay.body.result.data).toEqual(first.body.result.data);
+  expect(replay.response.headers.get('cache-control')).toBe('no-store');
+  expect(store.receipts.size).toBe(1);
+  expect(store.branches.size).toBe(operation === 'createBranch' ? 3 : 2);
+  expect(store.departments.size).toBe(operation === 'createDepartment' ? 3 : 2);
+  expect(store.branches.get(branchOne.id)!.version).toBe(operation === 'renameBranch' ? 2 : 1);
+  expect(store.departments.get(departmentOne.id)!.version).toBe(operation === 'renameDepartment' ? 2 : 1);
+});
+
+test('HTTP same key rejects changed input or another actor and cannot bypass current permission or CSRF', async () => {
+  const api = await client('MANAGER');
+  const input = { operationId: randomUUID(), name: 'HTTP actor-bound receipt' };
+  const first = await api.mutate('organization.createBranch', input);
+  expect(first.response.status).toBe(200);
+  const conflict = await api.mutate('organization.createBranch', { ...input, name: 'Different request' });
+  expect(conflict.response.status).toBe(409);
+  expect(conflict.body.error.message).toBe('ORG_OPERATION_CONFLICT');
+  expect(conflict.body).not.toHaveProperty('result');
+  const other = await client('DELEGATED');
+  const anotherActor = await other.mutate('organization.createBranch', input);
+  expect(anotherActor.response.status).toBe(409);
+  expect(anotherActor.body.error.message).toBe('ORG_OPERATION_CONFLICT');
+  expect(JSON.stringify(anotherActor.body)).not.toContain(first.body.result.data.branch.id);
+  const csrf = await api.mutate('organization.createBranch', input, { 'x-madar-csrf': '' });
+  expect(csrf.response.status).toBe(403); expect(csrf.body.error.message).toBe('AUTH_CSRF');
+  const actor = [...store.users.values()].find(user => user.username === 'MANAGER')!;
+  actor.overrides = [{ permissionCode: 'settings.manage', effect: 'deny' }];
+  const denied = await api.mutate('organization.createBranch', input);
+  expect(denied.response.status).toBe(403); expect(denied.body.error.message).toBe('AUTH_FORBIDDEN');
+  expect(denied.body).not.toHaveProperty('result');
+  expect(store.branches.size).toBe(3); expect(store.receipts.size).toBe(1);
+});
+
+test('a lost committed HTTP response followed by explicit resubmission returns one saved branch', async () => {
+  const api = await client('MANAGER');
+  const input = { operationId: randomUUID(), name: 'One branch after a lost success reply' };
+  dropNextCommittedResponse = true;
+  await expect(api.mutateWithoutRetry('organization.createBranch', input)).rejects.toThrow();
+  expect(committedResponseDrops).toBe(1);
+  expect(store.branches.size).toBe(3); expect(store.receipts.size).toBe(1);
+  const saved = [...store.branches.values()].find(branch => branch.name === input.name)!;
+  expect(saved).toBeDefined();
+  const replay = await api.mutate('organization.createBranch', input);
+  expect(replay.response.status).toBe(200);
+  expect(replay.body.result.data.branch).toEqual(saved);
+  expect(store.branches.size).toBe(3);
+  expect([...store.branches.values()].filter(branch => branch.name === input.name)).toHaveLength(1);
+  expect(store.events.filter(event => event.action === 'organization.branches.create' && event.result === 'success')).toHaveLength(1);
+  expect(store.events.filter(event => event.action === 'organization.branches.create.replay' && event.result === 'success')).toHaveLength(1);
+});
+
+test('HTTP receipt completion failure returns no-store unavailability and leaves no domain row or claim', async () => {
+  const api = await client('MANAGER'); const eventCount = store.events.length;
+  const input = { operationId: randomUUID(), name: 'Receipt must commit atomically' };
+  store.setReceiptFailure(true);
+  const rejected = await api.mutate('organization.createBranch', input);
+  expect(rejected.response.status).toBe(503);
+  expect(rejected.body.error.message).toBe('ORG_UNAVAILABLE');
+  expect(rejected.response.headers.get('cache-control')).toBe('no-store');
+  expect(rejected.body).not.toHaveProperty('result');
+  expect(JSON.stringify(rejected.body)).not.toMatch(/Synthetic|reservationToken|inputHash|insert into|passwordHash/);
+  expect(store.branches.size).toBe(2); expect(store.receipts.size).toBe(0); expect(store.events).toHaveLength(eventCount);
+  store.setReceiptFailure(false);
+  expect((await api.mutate('organization.createBranch', input)).response.status).toBe(200);
+  expect(store.branches.size).toBe(3); expect(store.receipts.size).toBe(1);
 });

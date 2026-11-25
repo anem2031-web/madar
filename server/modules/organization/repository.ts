@@ -2,6 +2,7 @@ import { and, asc, eq, gt, sql } from 'drizzle-orm';
 import { branches, departments } from '../../../database/schema/organization.ts';
 import type { DatabaseConnection, DatabaseTransaction } from '../../core/database/connection.ts';
 import { authTransaction, sqlUtc } from '../auth/repository.ts';
+import { writeOperationsTransaction } from '../../core/write-operations/repository.ts';
 import type { OrganizationStore, OrganizationTransaction } from './store.ts';
 
 const branchFields = { id: branches.id, name: branches.name, version: branches.version };
@@ -10,6 +11,7 @@ const departmentFields = { id: departments.id, branchId: departments.branchId, n
 function organizationTransaction(tx: DatabaseTransaction): OrganizationTransaction {
   return {
     ...authTransaction(tx),
+    ...writeOperationsTransaction(tx),
     async listBranches(cursor, limit) {
       return tx.select(branchFields).from(branches).where(cursor ? gt(branches.id, cursor) : undefined).orderBy(asc(branches.id)).limit(limit);
     },
