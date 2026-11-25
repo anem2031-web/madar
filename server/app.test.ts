@@ -47,6 +47,24 @@ test('does not provide a simulated login when authentication storage is not conf
   await expect(client.auth.session.query()).rejects.toThrow('AUTH_UNAVAILABLE');
 });
 
+test('serves the bundled font license as public text without exposing application data', async () => {
+  const fontListener = createApp({ clientDirectory: resolve('client/public') }).listen(0, '127.0.0.1');
+  await once(fontListener, 'listening');
+  const address = fontListener.address();
+  if (!address || typeof address === 'string') throw new Error('Missing font test listener address.');
+  try {
+    const response = await fetch(`http://127.0.0.1:${address.port}/font-license.txt`);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('text/plain');
+    expect(response.headers.get('cache-control')).toBe('no-cache');
+    const text = await response.text();
+    expect(text).toContain('SIL OPEN FONT LICENSE');
+    expect(text).not.toContain('<div id="root">');
+  } finally {
+    const closed = once(fontListener, 'close'); fontListener.close(); await closed;
+  }
+});
+
 test('does not expose diagnostics or cache API failures', async () => {
   const response = await fetch(`${origin}/api/trpc/doesNotExist`);
   expect(response.status).toBe(404);

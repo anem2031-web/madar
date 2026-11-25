@@ -35,7 +35,7 @@ export default {
   hrRole: 'Human resources',
   assignedRole: 'Your assigned role',
   sessionNote: 'Your session ends after 30 minutes of inactivity, or 8 hours after signing in.',
-  workspaceNote: 'You are now in your workspace. Features will appear here as they become available to your account.',
+  workspaceNote: 'Choose an available page for your account from the navigation menu.',
   logout: 'Sign out',
   working: 'Working…',
   signedOut: 'You have signed out.',

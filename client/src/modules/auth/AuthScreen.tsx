@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { messages } from '../../i18n/locale.ts';
 import { RequestFailure, RequestReference } from '../../components/feedback/RequestFailure.tsx';
 import type { Language } from '../../i18n/locale.ts';
 import { useAuth } from './useAuth.ts';
 import { navigate, usePathname } from '../../app/navigation.ts';
+import { PublicLayout } from '../../app/layouts/PublicLayout.tsx';
+import { WorkspaceLayout } from '../../app/layouts/WorkspaceLayout.tsx';
 import { userMessages } from '../users/locale.ts';
 import { TemporaryPasswordPanel } from '../users/TemporaryPasswordPanel.tsx';
 import { usePasswordPrivacy } from './password-privacy.ts';
@@ -13,7 +15,6 @@ import { permissionMessages } from '../permission-overrides/locale.ts';
 import { numberingMessages } from '../settings/numbering/locale.ts';
 import { auditMessages } from '../audit/locale.ts';
 
-import { getAllowedLandingPages } from '../../../../shared/permissions/pages.ts';
 import type { ProtectedPageId } from '../../../../shared/permissions/pages.ts';
 import { protectedPageComponents } from './ProtectedPageContent.tsx';
 import { usePageGuard } from './usePageGuard.ts';
@@ -99,7 +100,7 @@ function LoginForm({ labels, pending, disabled, onSubmit }: {
   );
 }
 
-export function AuthScreen({ language }: { language: Language }) {
+export function AuthScreen({ language, onLanguageChange }: { language: Language; onLanguageChange: () => void }) {
   const labels = messages[language];
   const userLabels = userMessages[language];
   const permissionLabels = permissionMessages[language];
@@ -113,6 +114,7 @@ export function AuthScreen({ language }: { language: Language }) {
   const { session, pending, verifying, error, notice } = auth;
   const blocked = pending || verifying;
   const verificationStatus = verifying ? <p role="status" className="mb-4 text-sm text-muted">{labels.checking}</p> : null;
+  const publicView = (content: ReactNode) => <PublicLayout language={language} onLanguageChange={onLanguageChange}>{content}</PublicLayout>;
   useEffect(() => {
     if (selfResetResult && session && session.state !== 'anonymous') setSelfResetResult(null);
   }, [selfResetResult, session]);
@@ -138,7 +140,7 @@ export function AuthScreen({ language }: { language: Language }) {
     auth.invalidateSession();
     void auth.refresh();
   };
-  if (selfResetResult && selfResetResult.path === path && (!session || session.state === 'anonymous')) return (
+  if (selfResetResult && selfResetResult.path === path && (!session || session.state === 'anonymous')) return publicView(
     <div className="mx-auto w-full max-w-xl">
       <TemporaryPasswordPanel username={selfResetResult.username} password={selfResetResult.password} labels={userLabels} signedOut onDismiss={() => {
         setSelfResetResult(null);
@@ -147,12 +149,12 @@ export function AuthScreen({ language }: { language: Language }) {
       }} />
     </div>
   );
-  if (guard.decision.kind === 'checking' || guard.decision.kind === 'redirect' || (pending && !session)) return (
+  if (guard.decision.kind === 'checking' || guard.decision.kind === 'redirect' || (pending && !session)) return publicView(
     <div className="state-panel" role="status" aria-live="polite">
       <span className="loading-ring" aria-hidden="true" /><h2 className="card-title">{pending ? labels.working : labels.checking}</h2><p className="text-muted">{labels.checkingDescription}</p>
     </div>
   );
-  if (guard.decision.kind === 'unavailable') return (
+  if (guard.decision.kind === 'unavailable') return publicView(
     <div className="state-panel">
       <span className="state-symbol" aria-hidden="true">!</span><h2 className="card-title">{labels.unavailable}</h2>
       {error ? <RequestFailure message={errorLabel(error, labels)} code={error} requestId={auth.errorRequestId} language={language} /> : <p className="text-muted" role="alert">{labels.unavailableDescription}</p>}
@@ -166,14 +168,13 @@ export function AuthScreen({ language }: { language: Language }) {
     numbering: numberingLabels.openNumbering,
     audit: auditLabels.openAudit,
   } satisfies Record<ProtectedPageId, string>;
-  const allowedPages = getAllowedLandingPages(session?.user?.permissions ?? []);
-  if (guard.decision.kind === 'not-found') return (
+  if (guard.decision.kind === 'not-found') return publicView(
     <div className="state-panel">
       <h2 className="card-title">{labels.notFoundHeading}</h2><p className="text-muted">{labels.notFoundDescription}</p>
       <button type="button" className="control mt-5" disabled={blocked} onClick={() => navigate('/')}>{userLabels.back}</button>
     </div>
   );
-  if (guard.decision.kind === 'no-access' || guard.decision.kind === 'access-conflict') return (
+  if (guard.decision.kind === 'no-access' || guard.decision.kind === 'access-conflict') return publicView(
     <div className="state-panel">
       <h2 className="card-title">{guard.decision.kind === 'no-access' ? labels.noPagesHeading : labels.accessConflictHeading}</h2>
       <p className="text-muted" role="alert">{guard.decision.kind === 'no-access' ? labels.noPagesDescription : labels.accessConflictDescription}</p>
@@ -186,54 +187,42 @@ export function AuthScreen({ language }: { language: Language }) {
   );
   const role = session?.user?.roleCode;
   const roleName = role === 'system_admin' ? labels.adminRole : role === 'hr' ? labels.hrRole : labels.assignedRole;
-  if (guard.decision.kind === 'render' && session?.state === 'authenticated' && session.user) {
-    const PageView = protectedPageComponents[guard.decision.page.id];
+  if ((guard.decision.kind === 'render' || guard.decision.kind === 'workspace') && session?.state === 'authenticated' && session.user) {
+    const PageView = guard.decision.kind === 'render' ? protectedPageComponents[guard.decision.page.id] : null;
     return (
-      <div className="w-full min-w-0">
-        <nav className="workspace-nav flex-wrap" aria-label={labels.workspace}>
-          <button type="button" className="control" onClick={() => navigate('/')} disabled={blocked}>{userLabels.back}</button>
-          {allowedPages.map(page => <a key={page.id} href={page.path} className="control" aria-current={page.path === path ? 'page' : undefined} aria-disabled={blocked || undefined} onClick={event => { event.preventDefault(); if (!blocked) navigate(page.path); }}>{pageLabels[page.id]}</a>)}
-          <button type="button" className="control" onClick={() => { void auth.logout(); }} disabled={blocked}>{pending ? labels.working : labels.logout}</button>
-        </nav>
+      <WorkspaceLayout key={session.user.username} language={language} onLanguageChange={onLanguageChange} pathname={path} username={session.user.username}
+        roleName={roleName} permissions={session.user.permissions} pageLabels={pageLabels} blocked={blocked} onNavigate={navigate} onLogout={() => { void auth.logout(); }}>
         {verificationStatus}
-        <PageView key={session.user.username + ':' + guard.decision.page.id} language={language} username={session.user.username} permissions={session.user.permissions}
+        {PageView ? <PageView key={session.user.username + ':' + guard.decision.page.id} language={language} username={session.user.username} permissions={session.user.permissions}
           verifying={verifying} accessHandlers={guard.accessHandlers} onSelfResetResult={receiveSelfReset}
-          foregroundActions={{ begin: auth.beginForeground, end: auth.endForeground }} />
-      </div>
-    );
-  }
-  if (!session) return null;
-  return (
-    <div className="auth-content">
-      {verificationStatus}
-      {session.state === 'authenticated' ? (
-        <>
+          foregroundActions={{ begin: auth.beginForeground, end: auth.endForeground }} /> : <div className="auth-content">
           <span className="success-symbol" aria-hidden="true">✓</span>
           <h2 className="card-title mt-4">{labels.welcome}</h2>
           <p className="card-description">{labels.signedIn}</p>
           {notice && <p role="status" className="feedback feedback-success">{labels[notice]}</p>}
           {error && <RequestFailure message={errorLabel(error, labels)} code={error} requestId={auth.errorRequestId} language={language} />}
-          <dl className="account-details"><div><dt>{labels.account}</dt><dd dir="auto">{session.user?.username}</dd></div><div><dt>{labels.role}</dt><dd>{roleName}</dd></div></dl>
+          <dl className="account-details"><div><dt>{labels.account}</dt><dd dir="auto">{session.user.username}</dd></div><div><dt>{labels.role}</dt><dd>{roleName}</dd></div></dl>
           <p className="workspace-note">{labels.workspaceNote}</p>
-          {allowedPages.map(page => <a key={page.id} href={page.path} className="primary-button mt-3" aria-disabled={blocked || undefined} onClick={event => { event.preventDefault(); if (!blocked) navigate(page.path); }}>{pageLabels[page.id]}</a>)}
           <p className="field-hint mt-5">{labels.sessionNote}</p>
-          <button type="button" className="control mt-6 w-full" disabled={blocked} onClick={() => { void auth.logout(); }}>{pending ? labels.working : labels.logout}</button>
-        </>
-      ) : (
-        <>
-          <span className="section-eyebrow">{labels.appName}</span>
-          <h2 className="card-title">{session.state === 'password_change' ? labels.changePasswordHeading : labels.loginHeading}</h2>
-          <p className="card-description">{session.state === 'password_change' ? labels.changePasswordDescription : labels.loginDescription}</p>
-          {notice && <p role="status" className="feedback feedback-success">{labels[notice]}</p>}
-          {error && <RequestFailure message={errorLabel(error, labels)} code={error} requestId={auth.errorRequestId} language={language} />}
-          {session.state === 'password_change'
-            ? <PasswordForm labels={labels} pending={pending} disabled={blocked} onSubmit={auth.changePassword} />
-            : <LoginForm labels={labels} pending={pending} disabled={blocked} onSubmit={auth.login} />}
-          {session.state === 'password_change'
-            ? <button type="button" className="control mt-4 w-full" disabled={blocked} onClick={() => { void auth.logout(); }}>{labels.logout}</button>
-            : <p className="account-help">{labels.accountHelp}</p>}
-        </>
-      )}
+        </div>}
+      </WorkspaceLayout>
+    );
+  }
+  if (!session) return null;
+  return publicView(
+    <div className="auth-content">
+      {verificationStatus}
+      <span className="section-eyebrow">{labels.appName}</span>
+      <h2 className="card-title">{session.state === 'password_change' ? labels.changePasswordHeading : labels.loginHeading}</h2>
+      <p className="card-description">{session.state === 'password_change' ? labels.changePasswordDescription : labels.loginDescription}</p>
+      {notice && <p role="status" className="feedback feedback-success">{labels[notice]}</p>}
+      {error && <RequestFailure message={errorLabel(error, labels)} code={error} requestId={auth.errorRequestId} language={language} />}
+      {session.state === 'password_change'
+        ? <PasswordForm labels={labels} pending={pending} disabled={blocked} onSubmit={auth.changePassword} />
+        : <LoginForm labels={labels} pending={pending} disabled={blocked} onSubmit={auth.login} />}
+      {session.state === 'password_change'
+        ? <button type="button" className="control mt-4 w-full" disabled={blocked} onClick={() => { void auth.logout(); }}>{labels.logout}</button>
+        : <p className="account-help">{labels.accountHelp}</p>}
     </div>
   );
 }

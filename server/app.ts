@@ -68,7 +68,7 @@ export function createApp({ clientDirectory, pingDatabase, authStore, authConfig
   app.use('/api/trpc', jsonRequestContent, express.json({ limit: '8kb' }), createExpressMiddleware({ router: appRouter, allowBatching: false, createContext: ({ req, res }) => ({ req, res, auth, users, permissionOverrides, organization, numberingSettings, audit, secureCookies }) }));
 
   if (clientDirectory) {
-    for (const path of ['/manifest.webmanifest', '/sw.js', '/offline.html']) {
+    for (const path of ['/manifest.webmanifest', '/sw.js', '/offline.html', '/font-license.txt']) {
       app.get(path, (_request, response) => {
         response.set('Cache-Control', 'no-cache');
         if (path === '/manifest.webmanifest') response.type('application/manifest+json');
