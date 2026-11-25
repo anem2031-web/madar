@@ -68,7 +68,10 @@
 
 @media (any-hover: hover) {
   .workspace-sidebar { transition: inline-size .2s ease; }
+  /* Preserve the reference brand slot while the rail is collapsed. */
+  .workspace-sidebar .shell-brand-copy { min-block-size: calc(var(--type-title) * 3.9 + var(--type-detail) * 1.55 + 4px); }
   .workspace-sidebar:is(:hover, :has(:focus-visible), [data-section-open=true]) { inline-size: min(228px, 48vw); box-shadow: -10px 0 28px #2b3d5e24; }
+  .workspace-sidebar:is(:hover, :has(:focus-visible), [data-section-open=true]) .shell-brand-copy { min-block-size: 0; }
   [dir=ltr] .workspace-sidebar:is(:hover, :has(:focus-visible), [data-section-open=true]) { box-shadow: 10px 0 28px #2b3d5e24; }
   .workspace-sidebar :is(.shell-brand-copy, .shell-nav-heading, .shell-nav-label, .shell-nav-chevron) { opacity: 0; visibility: hidden; transition: opacity .12s ease, visibility 0s .12s; }
   .workspace-sidebar:is(:hover, :has(:focus-visible), [data-section-open=true]) :is(.shell-brand-copy, .shell-nav-heading, .shell-nav-label, .shell-nav-chevron) { opacity: 1; visibility: visible; transition-delay: .04s, 0s; }
