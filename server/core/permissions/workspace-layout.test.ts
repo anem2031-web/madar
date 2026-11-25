@@ -39,8 +39,12 @@ function renderWorkspace(overrides: Partial<ComponentProps<typeof WorkspaceLayou
 }
 
 function menus(html: string) {
-  return [...html.matchAll(/<nav\b[^>]*>([\s\S]*?)<\/nav>/g)].map(match =>
-    [...match[1].matchAll(/<a\b([^>]*)>/g)].map(link => ({
+  // Both surfaces keep permitted secondary links in a hidden section until its trigger opens it.
+  // Inspect those links too: hidden navigation must never contain an unauthorized destination.
+  return [...html.matchAll(/<(aside|dialog)\b([^>]*)>([\s\S]*?)<\/\1>/g)]
+    .filter(match => /\bclass="(?:workspace-sidebar|shell-drawer)"/.test(match[2]))
+    .map(match => [...match[3].matchAll(/<a\b([^>]*)>/g)]
+      .filter(link => /\bclass="shell-(?:nav|section)-link"/.test(link[1])).map(link => ({
       path: /\bhref="([^"]+)"/.exec(link[1])?.[1],
       label: /\baria-label="([^"]+)"/.exec(link[1])?.[1],
       current: /\baria-current="page"/.test(link[1]),
@@ -57,12 +61,12 @@ function expectLanguageControl(html: string, language: Language) {
   const button = [...html.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
     .find(match => match[1].includes(`lang="${destination}"`));
   expect(button).toBeDefined();
-  expect(button?.[2]).toBe(visibleName);
+  expect(button?.[2].replace(/<[^>]*>/g, '').trim()).toBe(visibleName);
   expect(button?.[1]).toContain(`title="${shellMessages[language].language}"`);
   expect(button?.[1]).not.toContain('aria-label=');
 }
 
-test('desktop and drawer menus contain exactly the central registry destinations for every permission subset', () => {
+test('desktop and drawer root and secondary menus contain exactly the registry destinations for every permission subset', () => {
   const pagePermissions = [...new Set(registeredPages.filter(page => page.kind === 'protected').flatMap(page => page.requiredPermissions))];
   const grantsBefore = JSON.stringify(initialRolePermissions);
   for (const language of ['ar', 'en'] as const) {
@@ -116,6 +120,13 @@ test('background verification blocks route links and logout while preserving the
       expect(link.path).toBeUndefined(); expect(link.role).toBe('link');
     }
   }
+  const blockedAnchors = [...html.matchAll(/<a\b([^>]*)>/g)].filter(link => link[1].includes('aria-disabled="true"'));
+  expect(blockedAnchors.length).toBeGreaterThan(navigation.flat().length);
+  for (const link of blockedAnchors) {
+    expect(link[1]).not.toContain('href=');
+    expect(link[1]).toContain('role="link"');
+    expect(link[1]).toContain('tabindex="-1"');
+  }
   const logout = [...html.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)].find(button => button[2].includes(messages.ar.logout));
   expect(logout?.[1]).toMatch(/\bdisabled=""/);
   expect(html.match(/<main\b/g)).toHaveLength(1);
@@ -129,9 +140,9 @@ test('both shell languages provide accessible controls and safe identity isolati
   for (const language of ['ar', 'en'] as const) {
     const labels = shellMessages[language];
     for (const label of Object.values(labels)) expect(label.trim().length).toBeGreaterThan(0);
-    const html = renderWorkspace({ language, username: '<script>unsafe account</script>', pathname: '/organization' });
+    const html = renderWorkspace({ language, username: '<script>unsafe account</script>', pathname: '/organization', permissions: initialRolePermissions.system_admin });
     expect(html).toContain(`<div class="workspace-shell" dir="${language === 'ar' ? 'rtl' : 'ltr'}"`);
-    for (const key of ['navigation', 'openMenu', 'closeMenu', 'collapseSidebar'] as const) {
+    for (const key of ['navigation', 'openMenu', 'closeMenu', 'closeSection'] as const) {
       expect(html).toContain(`aria-label="${labels[key]}"`);
     }
     expect(html).toContain(`href="#workspace-main"`);
@@ -141,6 +152,36 @@ test('both shell languages provide accessible controls and safe identity isolati
     expect(html).not.toContain('<script>');
     expect(html.match(/data-testid="single-page-child"/g)).toHaveLength(1);
     expectLanguageControl(html, language);
+  }
+});
+
+test('the secondary administration group is present only when at least one registered child is allowed', () => {
+  for (const language of ['ar', 'en'] as const) {
+    const labels = shellMessages[language];
+    for (const permissions of [[], initialRolePermissions.hr, ['roles.manage'], ['users.manage'], ['audit.read'], ['settings.manage']] as const) {
+      const html = renderWorkspace({ language, permissions });
+      const administrative = getAllowedLandingPages(permissions).filter(page => page.id !== 'organization');
+      const triggers = [...html.matchAll(/<button\b([^>]*)>/g)].filter(button => button[1].includes(`aria-label="${labels.systemAdministration}"`));
+      expect(triggers).toHaveLength(administrative.length ? 2 : 0);
+      if (administrative.length) {
+        const controlledSections = triggers.map(button => /\baria-controls="([^"]+)"/.exec(button[1])?.[1]);
+        expect(new Set(controlledSections).size).toBe(2);
+        for (const id of controlledSections) {
+          expect(id).toBeDefined();
+          expect(html).toMatch(new RegExp(`<section\\b[^>]*id="${id}"[^>]*hidden=""`));
+        }
+        for (const trigger of triggers) expect(trigger[1]).toContain('aria-expanded="false"');
+      } else {
+        expect(html).not.toContain('class="shell-section-menu"');
+        expect(html).not.toContain('aria-controls="workspace-desktop-administration"');
+        expect(html).not.toContain('aria-controls="workspace-touch-administration"');
+      }
+    }
+    const blocked = renderWorkspace({ language, permissions: initialRolePermissions.system_admin, blocked: true });
+    const triggers = [...blocked.matchAll(/<button\b([^>]*)>/g)].filter(button => button[1].includes(`aria-label="${labels.systemAdministration}"`));
+    expect(triggers).toHaveLength(2);
+    for (const trigger of triggers) { expect(trigger[1]).toContain('disabled=""'); expect(trigger[1]).toContain('aria-expanded="false"'); }
+    for (const links of menus(blocked)) for (const link of links) { expect(link.path).toBeUndefined(); expect(link.blocked).toBe(true); }
   }
 });
 

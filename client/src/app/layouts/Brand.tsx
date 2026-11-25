@@ -1,10 +1,17 @@
 import { messages } from '../../i18n/locale.ts';
 import type { Language } from '../../i18n/locale.ts';
+import { shellMessages } from './locale.ts';
 
-export function Brand({ language, compact = false }: { language: Language; compact?: boolean }) {
+export function Brand({ language, blocked = false, onHome }: { language: Language; blocked?: boolean; onHome?: () => void }) {
   const labels = messages[language];
-  return <div className={`shell-brand${compact ? ' shell-brand-compact' : ''}`} aria-label={labels.appName}>
-    <span className="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="5" fill="currentColor" /><ellipse cx="20" cy="20" rx="17" ry="10" transform="rotate(-40 20 20)" stroke="currentColor" strokeWidth="2" /><circle cx="31" cy="9" r="3" fill="currentColor" /></svg></span>
+  const content = <>
+    <span className="brand-mark" aria-hidden="true"><i /></span>
     <div className="shell-brand-copy"><p className="shell-brand-name">{labels.appName}</p><p className="shell-brand-description">{labels.appDescription}</p></div>
-  </div>;
+  </>;
+  if (!onHome) return <div className="shell-brand" aria-label={labels.appName}>{content}</div>;
+  return <a className="shell-brand" href={blocked ? undefined : '/'} role={blocked ? 'link' : undefined} aria-label={`${labels.appName}، ${shellMessages[language].workspace}`} aria-disabled={blocked || undefined} tabIndex={blocked ? -1 : undefined} onClick={event => {
+    if (blocked) { event.preventDefault(); return; }
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault(); onHome();
+  }}>{content}</a>;
 }

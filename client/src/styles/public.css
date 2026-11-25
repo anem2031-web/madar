@@ -1,0 +1,32 @@
+.public-shell { display: flex; min-block-size: 100dvh; inline-size: 100%; max-inline-size: 1152px; margin-inline: auto; flex-direction: column; padding-inline: clamp(16px, 3vw, 32px); }
+.public-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 24px; }
+.auth-layout { display: grid; overflow: hidden; min-inline-size: 0; margin-block: auto; border: 1px solid var(--glass-line); border-radius: var(--radius); background: var(--paper); box-shadow: var(--shadow); }
+.auth-intro { position: relative; isolation: isolate; display: flex; flex-direction: column; overflow: hidden; padding: 32px 24px; background: var(--brand-dark); background-image: radial-gradient(ellipse at 15% 90%, #155c59 0%, transparent 65%); color: white; }
+.intro-eyebrow { font-size: var(--type-copy); font-weight: 400; }
+.intro-heading { margin-block-start: 20px; font-size: 30px; font-weight: 400; line-height: 1.55; white-space: pre-line; letter-spacing: normal; }
+.intro-description { max-inline-size: 320px; margin-block-start: 16px; font-size: var(--type-copy); line-height: 1.75; }
+.intro-note { position: relative; display: flex; gap: 8px; align-items: center; margin-block-start: 28px; font-size: var(--type-detail); }
+.orbit-art { position: absolute; z-index: -1; inset-block-end: -36px; inset-inline-end: -48px; display: none; inline-size: 320px; block-size: 320px; transform: rotate(-12deg); pointer-events: none; }
+.orbit-art span, .orbit-art i { position: absolute; inset: 30% -15%; border: 1px solid rgb(255 255 255 / 22%); border-radius: 50%; transform: rotate(-30deg); }
+.orbit-art i { inset: 12%; transform: rotate(30deg); }
+.orbit-art b { position: absolute; inset: 35%; border-radius: 50%; background: rgb(255 255 255 / 9%); }
+.auth-card { display: flex; min-inline-size: 0; align-items: center; padding: 36px 24px; }
+.auth-content { inline-size: 100%; min-inline-size: 0; }
+.auth-layout .primary-button { inline-size: 100%; }
+.section-eyebrow { display: block; margin-block-end: 8px; color: var(--brand-dark); font-size: var(--type-copy); font-weight: 400; }
+.account-help { margin-block-start: 24px; padding-block-start: 20px; border-block-start: 1px solid var(--line); color: var(--muted); font-size: var(--type-detail); line-height: 1.7; }
+.account-details { display: grid; gap: 11px; margin-block: 20px 0; }
+.account-details div { display: flex; min-inline-size: 0; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); overflow-wrap: anywhere; }
+.account-details dt { color: var(--muted); font-size: var(--type-detail); }
+.account-details dd { min-inline-size: 0; margin: 2px 0 0; font-size: var(--type-copy); font-weight: 400; overflow-wrap: anywhere; }
+.workspace-note { margin-block-start: 20px; color: var(--muted); font-size: var(--type-copy); line-height: 1.55; }
+.public-footer { padding-block: 24px; color: var(--muted); text-align: center; font-size: var(--type-detail); line-height: 1.7; }
+@media (min-width: 640px) { .auth-card { padding: 40px; } .auth-intro { padding-inline: 40px; } }
+@media (min-width: 768px) {
+  .public-header { padding-block: 32px; }
+  .auth-layout { grid-template-columns: 1fr 1fr; }
+  .auth-intro { min-block-size: 590px; padding-block: 48px; }
+  .intro-heading { margin-block-start: 40px; font-size: 36px; }
+  .intro-note { margin-block-start: auto; padding-block-start: 64px; }
+  .orbit-art { display: block; }
+}
