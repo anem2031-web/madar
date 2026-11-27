@@ -1,0 +1,557 @@
+{
+  "runId": "1fdc755d-69ef-4482-9fb6-4aa6432fd6bb",
+  "database": "madartest",
+  "startedAt": "2026-11-25T12:58:41.784Z",
+  "cases": [
+    {
+      "name": "seed_10_users_200_employees",
+      "passed": true
+    },
+    {
+      "name": "receipt_unique_and_replayed",
+      "passed": true,
+      "callers": 10,
+      "executions": 1,
+      "replays": 9
+    },
+    {
+      "name": "service_duplicate_audit_once_replay_nine",
+      "passed": true
+    },
+    {
+      "name": "unique_keys_independent_writes",
+      "passed": true,
+      "users": 9
+    },
+    {
+      "name": "optimistic_concurrency_one_winner_one_conflict",
+      "passed": true
+    },
+    {
+      "name": "hr_denied_without_receipt",
+      "passed": true
+    },
+    {
+      "name": "changed_input_same_key_conflict",
+      "passed": true
+    },
+    {
+      "name": "rollback_audit_atomic_then_retry_success",
+      "passed": true
+    },
+    {
+      "name": "rollback_receipt_atomic_then_retry_success",
+      "passed": true
+    },
+    {
+      "name": "http_response_lost_after_commit_replay_exactly_once",
+      "passed": true
+    },
+    {
+      "name": "explain_current_receipt_organization_and_200_employee_indexes",
+      "passed": true
+    },
+    {
+      "name": "no_incomplete_receipts",
+      "passed": true
+    }
+  ],
+  "measurements": [
+    {
+      "name": "receipt_same_key_10_connections",
+      "concurrency": 10,
+      "p50Ms": 1647,
+      "p95Ms": 2756,
+      "maxMs": 2756,
+      "fulfilled": 10,
+      "rejected": []
+    },
+    {
+      "name": "service_same_actor_same_key_10_connections",
+      "concurrency": 10,
+      "p50Ms": 4782,
+      "p95Ms": 9191,
+      "maxMs": 9191,
+      "fulfilled": 10,
+      "rejected": []
+    },
+    {
+      "name": "service_9_admin_users_unique_keys",
+      "concurrency": 9,
+      "p50Ms": 4940,
+      "p95Ms": 8486,
+      "maxMs": 8486,
+      "fulfilled": 9,
+      "rejected": []
+    },
+    {
+      "name": "two_users_same_branch_version",
+      "concurrency": 2,
+      "p50Ms": 1372,
+      "p95Ms": 2261,
+      "maxMs": 2261,
+      "fulfilled": 1,
+      "rejected": [
+        "ORG_CONFLICT"
+      ]
+    }
+  ],
+  "plans": [
+    {
+      "name": "receipt_primary",
+      "rows": [
+        {
+          "id": "Point_Get_1",
+          "estRows": "1.00",
+          "task": "root",
+          "access object": "table:write_operation_receipts, clustered index:PRIMARY(operation_id)",
+          "operator info": ""
+        }
+      ]
+    },
+    {
+      "name": "branch_cursor",
+      "rows": [
+        {
+          "id": "Limit_11",
+          "estRows": "26.00",
+          "task": "root",
+          "access object": "",
+          "operator info": "offset:?, count:?"
+        },
+        {
+          "id": "└─TableReader_18",
+          "estRows": "26.00",
+          "task": "root",
+          "access object": "",
+          "operator info": "data:Limit_17"
+        },
+        {
+          "id": "  └─Limit_17",
+          "estRows": "26.00",
+          "task": "cop[tikv]",
+          "access object": "",
+          "operator info": "offset:?, count:?"
+        },
+        {
+          "id": "    └─TableRangeScan_16",
+          "estRows": "26.00",
+          "task": "cop[tikv]",
+          "access object": "table:branches",
+          "operator info": "range:(?,+inf], keep order:true, stats:pseudo"
+        }
+      ]
+    },
+    {
+      "name": "department_parent",
+      "rows": [
+        {
+          "id": "IndexLookUp_20",
+          "estRows": "10.00",
+          "task": "root",
+          "access object": "",
+          "operator info": "limit embedded(offset:0, count:26)"
+        },
+        {
+          "id": "├─Limit_19(Build)",
+          "estRows": "10.00",
+          "task": "cop[tikv]",
+          "access object": "",
+          "operator info": "offset:?, count:?"
+        },
+        {
+          "id": "│ └─IndexRangeScan_17",
+          "estRows": "10.00",
+          "task": "cop[tikv]",
+          "access object": "table:departments, index:uq_departments_branch_id(branch_id, id)",
+          "operator info": "range:[?,?], keep order:true, stats:pseudo"
+        },
+        {
+          "id": "└─TableRowIDScan_18(Probe)",
+          "estRows": "10.00",
+          "task": "cop[tikv]",
+          "access object": "table:departments",
+          "operator info": "keep order:false, stats:pseudo"
+        }
+      ]
+    },
+    {
+      "name": "employee_number",
+      "rows": [
+        {
+          "id": "Projection_4",
+          "estRows": "1.00",
+          "task": "root",
+          "access object": "",
+          "operator info": "madartest.employees.id"
+        },
+        {
+          "id": "└─Point_Get_6",
+          "estRows": "1.00",
+          "task": "root",
+          "access object": "table:employees, index:uq_employees_employee_number(employee_number_key)",
+          "operator info": ""
+        }
+      ]
+    },
+    {
+      "name": "employee_branch",
+      "rows": [
+        {
+          "id": "Projection_23",
+          "estRows": "10.00",
+          "task": "root",
+          "access object": "",
+          "operator info": "madartest.employees.id, madartest.employees.employee_number"
+        },
+        {
+          "id": "└─IndexLookUp_22",
+          "estRows": "10.00",
+          "task": "root",
+          "access object": "",
+          "operator info": "limit embedded(offset:0, count:26)"
+        },
+        {
+          "id": "  ├─Limit_21(Build)",
+          "estRows": "10.00",
+          "task": "cop[tikv]",
+          "access object": "",
+          "operator info": "offset:?, count:?"
+        },
+        {
+          "id": "  │ └─IndexRangeScan_19",
+          "estRows": "10.00",
+          "task": "cop[tikv]",
+          "access object": "table:employees, index:ix_employees_branch_number(branch_id, employee_number_key)",
+          "operator info": "range:[?,?], keep order:true, stats:pseudo"
+        },
+        {
+          "id": "  └─TableRowIDScan_20(Probe)",
+          "estRows": "10.00",
+          "task": "cop[tikv]",
+          "access object": "table:employees",
+          "operator info": "keep order:false, stats:pseudo"
+        }
+      ]
+    }
+  ],
+  "cleanup": {
+    "remaining": {
+      "write_operation_receipts": 0,
+      "users": 0,
+      "user_permission_overrides": 0,
+      "sessions": 0,
+      "roles": 0,
+      "role_permissions": 0,
+      "permissions": 0,
+      "numbering_series": 0,
+      "numbering_issuances": 0,
+      "numbering_counters": 0,
+      "employees": 0,
+      "departments": 0,
+      "branches": 0,
+      "auth_throttles": 0,
+      "audit_outbox": 0,
+      "audit_events": 0
+    }
+  },
+  "status": "failed",
+  "completedAt": "2026-11-25T12:59:26.249Z",
+  "auditAndLatency": {
+    "startedAt": "2026-11-25T13:00:09.827Z",
+    "actor": "55a341db-5e14-438c-ae53-dbaf814ca4e8",
+    "baseline": [
+      102,
+      102,
+      102,
+      103,
+      104,
+      104,
+      104,
+      104,
+      104,
+      104,
+      104,
+      105,
+      105,
+      105,
+      105,
+      105,
+      105,
+      105,
+      105,
+      105,
+      105,
+      106,
+      106,
+      106,
+      106,
+      106,
+      107,
+      107,
+      109,
+      110
+    ],
+    "cases": [
+      {
+        "name": "two_real_audit_workers_40_events",
+        "passed": true,
+        "cycles": 2,
+        "summaries": [
+          {
+            "recovered": 0,
+            "claimed": 12,
+            "delivered": 12,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          },
+          {
+            "recovered": 0,
+            "claimed": 13,
+            "delivered": 13,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          },
+          {
+            "recovered": 0,
+            "claimed": 7,
+            "delivered": 7,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          },
+          {
+            "recovered": 0,
+            "claimed": 8,
+            "delivered": 8,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          }
+        ]
+      },
+      {
+        "name": "audit_index_and_bounded_reads_10040",
+        "passed": true
+      }
+    ],
+    "plans": [
+      {
+        "name": "audit_actor_period_10040",
+        "rows": [
+          {
+            "id": "Projection_21",
+            "estRows": "0.00",
+            "task": "root",
+            "access object": "",
+            "operator info": "madartest.audit_events.event_id, madartest.audit_events.occurred_at, madartest.audit_events.action, madartest.audit_events.result"
+          },
+          {
+            "id": "└─IndexLookUp_20",
+            "estRows": "0.00",
+            "task": "root",
+            "access object": "",
+            "operator info": "limit embedded(offset:0, count:26)"
+          },
+          {
+            "id": "  ├─Limit_19(Build)",
+            "estRows": "0.10",
+            "task": "cop[tikv]",
+            "access object": "",
+            "operator info": "offset:?, count:?"
+          },
+          {
+            "id": "  │ └─IndexRangeScan_17",
+            "estRows": "0.10",
+            "task": "cop[tikv]",
+            "access object": "table:audit_events, index:ix_audit_events_actor(actor_user_id, occurred_at, event_id)",
+            "operator info": "range:[? ?,? ?], keep order:true, desc, stats:pseudo"
+          },
+          {
+            "id": "  └─TableRowIDScan_18(Probe)",
+            "estRows": "0.00",
+            "task": "cop[tikv]",
+            "access object": "table:audit_events",
+            "operator info": "keep order:false, stats:pseudo"
+          }
+        ]
+      }
+    ],
+    "latency": [
+      {
+        "name": "SELECT_1_network_included_10_connections",
+        "samples": 30,
+        "p50Ms": 105,
+        "p95Ms": 109,
+        "maxMs": 110
+      },
+      {
+        "name": "audit_26_rows_10040_events_10_connections",
+        "samples": 30,
+        "p50Ms": 123,
+        "p95Ms": 135,
+        "maxMs": 135
+      }
+    ],
+    "cleanup": {
+      "audit_events": 0,
+      "audit_outbox": 0
+    },
+    "status": "passed",
+    "completedAt": "2026-11-25T13:00:43.717Z"
+  },
+  "productionPoolCheck": {
+    "startedAt": "2026-11-25T13:01:24.595Z",
+    "connectionLimit": 5,
+    "waitForConnections": false,
+    "cases": [
+      {
+        "concurrency": 5,
+        "passed": true,
+        "responses": [
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 1011
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 3175
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 1542
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 3765
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 2238
+          }
+        ]
+      },
+      {
+        "concurrency": 10,
+        "passed": false,
+        "responses": [
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 1539
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 2683
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 2093
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 992
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 3242
+          },
+          {
+            "status": 503,
+            "reason": "ORG_UNAVAILABLE",
+            "ms": 23
+          },
+          {
+            "status": 503,
+            "reason": "ORG_UNAVAILABLE",
+            "ms": 23
+          },
+          {
+            "status": 503,
+            "reason": "ORG_UNAVAILABLE",
+            "ms": 23
+          },
+          {
+            "status": 503,
+            "reason": "ORG_UNAVAILABLE",
+            "ms": 23
+          },
+          {
+            "status": 503,
+            "reason": "ORG_UNAVAILABLE",
+            "ms": 24
+          }
+        ]
+      }
+    ],
+    "cleanup": [
+      {
+        "users": 0,
+        "outbox": 0,
+        "sessions": 0
+      }
+    ],
+    "status": "failed",
+    "capacityProbe": {
+      "heldConnections": 5,
+      "sixthRejectedWithNoConnectionsAvailable": true,
+      "recoveredAfterRelease": true,
+      "at": "2026-11-25T13:07:11.904Z",
+      "rowsWritten": 0
+    }
+  },
+  "finalInventory": {
+    "at": "2026-11-25T13:04:41.060Z",
+    "counts": {
+      "write_operation_receipts": 0,
+      "users": 0,
+      "user_permission_overrides": 0,
+      "sessions": 0,
+      "roles": 0,
+      "role_permissions": 0,
+      "permissions": 0,
+      "numbering_series": 0,
+      "numbering_issuances": 0,
+      "numbering_counters": 0,
+      "employees": 0,
+      "departments": 0,
+      "branches": 0,
+      "auth_throttles": 0,
+      "audit_outbox": 0,
+      "audit_events": 0
+    },
+    "history": [
+      {
+        "hash": "28613c7d87709947e45105ac0489c2ff99d1e5beae4009dca9cb7b0c3f4541c8",
+        "created_at": 1795360011508
+      },
+      {
+        "hash": "0c6666805e703a5b659f642ae1b1fc1bc294f68b36aa77b58e20e171ce70b927",
+        "created_at": 1795605194621
+      }
+    ],
+    "indexes": 42,
+    "foreignKeys": 13
+  },
+  "overallStatus": "failed_production_pool_capacity",
+  "environment": {
+    "node": "v24.15.0",
+    "testDatabase": "madartest",
+    "applicationDatabaseTouched": false,
+    "globalCheckChanged": false,
+    "actualHttpServer": "localhost",
+    "timingsIncludeRemoteNetwork": true
+  },
+  "integrityStatus": "passed"
+}

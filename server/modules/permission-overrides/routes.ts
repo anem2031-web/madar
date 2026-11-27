@@ -3,6 +3,7 @@ import { PasswordBusyError } from '../../core/auth/password.ts';
 import { authErrorCodes, overridesErrorCodes } from '../../../shared/errors/contracts.ts';
 import { knownReason } from '../../core/errors/public-error.ts';
 import { logTechnicalFailure } from '../../core/errors/technical-log.ts';
+import { databaseAcquisitionFailure } from '../../core/errors/database-failure.ts';
 import { AuthFault } from '../auth/errors.ts';
 import { authRequest } from '../auth/routes.ts';
 import type { UsersContext } from '../users/routes.ts';
@@ -19,6 +20,8 @@ export async function permissionOverridesRoute<T>(context: PermissionOverridesCo
     if (!context.permissionOverrides) throw new OverridesFault('OVERRIDES_UNAVAILABLE');
     return await work(context.permissionOverrides, request);
   } catch (error) {
+    const acquisitionFailure = databaseAcquisitionFailure(error, { requestId: request.requestId, scope: 'permissions', code: 'OVERRIDES_STORE_FAILURE' });
+    if (acquisitionFailure) throw acquisitionFailure;
     const reason = (error instanceof OverridesFault ? knownReason(error, overridesErrorCodes) : error instanceof AuthFault ? knownReason(error, authErrorCodes)
       : error instanceof PasswordBusyError ? 'AUTH_RATE_LIMITED' : undefined) ?? 'OVERRIDES_UNAVAILABLE';
     if (reason === 'OVERRIDES_UNAVAILABLE') logTechnicalFailure({ requestId: request.requestId, scope: 'permissions', operation: 'request', code: 'OVERRIDES_STORE_FAILURE', error });

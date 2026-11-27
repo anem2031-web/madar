@@ -1,0 +1,830 @@
+{
+  "date": "2026-11-25",
+  "timezone": "Asia/Riyadh",
+  "request": "Repeat TiDB tests on madartest without changing product configuration",
+  "status": "failed_production_pool_capacity",
+  "environment": {
+    "node": "v24.15.0",
+    "database": "madartest",
+    "tls": true,
+    "actualHttpServer": "localhost",
+    "timingsIncludeRemoteNetwork": true,
+    "connectionSourceSha256": "f34c39ed313d5b2ed8242f795b78c98879c079b31ff0bb8122a67d66347a4412",
+    "applicationDatabaseTouched": false,
+    "globalCheckChanged": false,
+    "schemaChangesThisRound": false
+  },
+  "preflight": {
+    "at": "2026-11-25T13:13:13.131Z",
+    "database": "madartest",
+    "tls": true,
+    "counts": {
+      "audit_events": 0,
+      "audit_outbox": 0,
+      "auth_throttles": 0,
+      "branches": 0,
+      "departments": 0,
+      "employees": 0,
+      "numbering_counters": 0,
+      "numbering_issuances": 0,
+      "numbering_series": 0,
+      "permissions": 0,
+      "role_permissions": 0,
+      "roles": 0,
+      "sessions": 0,
+      "user_permission_overrides": 0,
+      "users": 0,
+      "write_operation_receipts": 0
+    },
+    "migrations": [
+      {
+        "hash": "28613c7d87709947e45105ac0489c2ff99d1e5beae4009dca9cb7b0c3f4541c8",
+        "created_at": 1795360011508
+      },
+      {
+        "hash": "0c6666805e703a5b659f642ae1b1fc1bc294f68b36aa77b58e20e171ce70b927",
+        "created_at": 1795605194621
+      }
+    ],
+    "indexes": 42,
+    "foreignKeys": 13
+  },
+  "core": {
+    "runId": "b9bfb65d-2096-4b65-9154-6d939070a1bb",
+    "database": "madartest",
+    "startedAt": "2026-11-25T13:18:23.246Z",
+    "status": "passed",
+    "cases": [
+      {
+        "name": "seed_10_users_200_employees",
+        "passed": true,
+        "users": 10,
+        "administrators": 9,
+        "hr": 1,
+        "sessions": 10,
+        "employees": 200
+      },
+      {
+        "name": "receipt_unique_and_replayed",
+        "passed": true,
+        "callers": 10,
+        "executions": 1,
+        "replays": 9
+      },
+      {
+        "name": "service_duplicate_audit_once_replay_nine",
+        "passed": true
+      },
+      {
+        "name": "unique_keys_independent_writes",
+        "passed": true,
+        "users": 9
+      },
+      {
+        "name": "optimistic_concurrency_one_winner_one_conflict",
+        "passed": true
+      },
+      {
+        "name": "hr_denied_without_receipt",
+        "passed": true
+      },
+      {
+        "name": "changed_input_same_key_conflict",
+        "passed": true
+      },
+      {
+        "name": "rollback_audit_atomic_then_retry_success",
+        "passed": true
+      },
+      {
+        "name": "rollback_receipt_atomic_then_retry_success",
+        "passed": true
+      },
+      {
+        "name": "http_response_lost_after_commit_replay_exactly_once",
+        "passed": true,
+        "responseDrops": 1,
+        "explicitRetries": 1,
+        "transport": "node:http agent:false",
+        "lostResponse": {
+          "code": "ECONNRESET",
+          "reason": "driver_or_transport_failure"
+        }
+      },
+      {
+        "name": "explain_current_receipt_organization_and_200_employee_indexes",
+        "passed": true,
+        "employees": 200,
+        "analyzeExecuted": false
+      },
+      {
+        "name": "no_incomplete_receipts",
+        "passed": true
+      }
+    ],
+    "measurements": [
+      {
+        "name": "receipt_same_key_10_connections",
+        "concurrency": 10,
+        "p50Ms": 1531,
+        "p95Ms": 2667,
+        "maxMs": 2667,
+        "fulfilled": 10,
+        "rejected": []
+      },
+      {
+        "name": "service_same_actor_same_key_10_connections",
+        "concurrency": 10,
+        "p50Ms": 5458,
+        "p95Ms": 9940,
+        "maxMs": 9940,
+        "fulfilled": 10,
+        "rejected": []
+      },
+      {
+        "name": "service_9_admin_users_unique_keys",
+        "concurrency": 9,
+        "p50Ms": 4848,
+        "p95Ms": 8499,
+        "maxMs": 8499,
+        "fulfilled": 9,
+        "rejected": []
+      },
+      {
+        "name": "two_users_same_branch_version",
+        "concurrency": 2,
+        "p50Ms": 1443,
+        "p95Ms": 2359,
+        "maxMs": 2359,
+        "fulfilled": 1,
+        "rejected": [
+          {
+            "code": "APPLICATION_REJECTION",
+            "reason": "ORG_CONFLICT"
+          }
+        ]
+      }
+    ],
+    "plans": [
+      {
+        "name": "receipt_primary",
+        "rows": [
+          {
+            "id": "Point_Get_1",
+            "estRows": "1.00",
+            "task": "root",
+            "access object": "table:write_operation_receipts, clustered index:PRIMARY(operation_id)",
+            "operator info": ""
+          }
+        ]
+      },
+      {
+        "name": "branch_cursor",
+        "rows": [
+          {
+            "id": "Limit_11",
+            "estRows": "1.00",
+            "task": "root",
+            "access object": "",
+            "operator info": "offset:?, count:?"
+          },
+          {
+            "id": "└─TableReader_18",
+            "estRows": "1.00",
+            "task": "root",
+            "access object": "",
+            "operator info": "data:Limit_17"
+          },
+          {
+            "id": "  └─Limit_17",
+            "estRows": "1.00",
+            "task": "cop[tikv]",
+            "access object": "",
+            "operator info": "offset:?, count:?"
+          },
+          {
+            "id": "    └─TableRangeScan_16",
+            "estRows": "1.00",
+            "task": "cop[tikv]",
+            "access object": "table:branches",
+            "operator info": "range:(?,+inf], keep order:true, stats:partial[id:unInitialized]"
+          }
+        ]
+      },
+      {
+        "name": "department_parent",
+        "rows": [
+          {
+            "id": "Projection_29",
+            "estRows": "0.00",
+            "task": "root",
+            "access object": "",
+            "operator info": "madartest.departments.id, madartest.departments.name, madartest.departments.version"
+          },
+          {
+            "id": "└─IndexLookUp_28",
+            "estRows": "0.00",
+            "task": "root",
+            "access object": "",
+            "operator info": "limit embedded(offset:0, count:26)"
+          },
+          {
+            "id": "  ├─Limit_27(Build)",
+            "estRows": "1.00",
+            "task": "cop[tikv]",
+            "access object": "",
+            "operator info": "offset:?, count:?"
+          },
+          {
+            "id": "  │ └─IndexRangeScan_25",
+            "estRows": "1.00",
+            "task": "cop[tikv]",
+            "access object": "table:departments, index:uq_departments_branch_id(branch_id, id)",
+            "operator info": "range:[?,?], keep order:true, stats:partial[primary:unInitialized, branch_id:unInitialized]"
+          },
+          {
+            "id": "  └─TableRowIDScan_26(Probe)",
+            "estRows": "0.00",
+            "task": "cop[tikv]",
+            "access object": "table:departments",
+            "operator info": "keep order:false, stats:partial[primary:unInitialized, branch_id:unInitialized]"
+          }
+        ]
+      },
+      {
+        "name": "employee_number",
+        "rows": [
+          {
+            "id": "Projection_4",
+            "estRows": "1.00",
+            "task": "root",
+            "access object": "",
+            "operator info": "madartest.employees.id"
+          },
+          {
+            "id": "└─Point_Get_6",
+            "estRows": "1.00",
+            "task": "root",
+            "access object": "table:employees, index:uq_employees_employee_number(employee_number_key)",
+            "operator info": ""
+          }
+        ]
+      },
+      {
+        "name": "employee_branch",
+        "rows": [
+          {
+            "id": "Projection_26",
+            "estRows": "0.20",
+            "task": "root",
+            "access object": "",
+            "operator info": "madartest.employees.id, madartest.employees.employee_number"
+          },
+          {
+            "id": "└─IndexLookUp_25",
+            "estRows": "0.20",
+            "task": "root",
+            "access object": "",
+            "operator info": "limit embedded(offset:0, count:26)"
+          },
+          {
+            "id": "  ├─Limit_24(Build)",
+            "estRows": "0.20",
+            "task": "cop[tikv]",
+            "access object": "",
+            "operator info": "offset:?, count:?"
+          },
+          {
+            "id": "  │ └─IndexRangeScan_22",
+            "estRows": "0.20",
+            "task": "cop[tikv]",
+            "access object": "table:employees, index:ix_employees_branch_number(branch_id, employee_number_key)",
+            "operator info": "range:[?,?], keep order:true, stats:partial[uq_employees_employee_number:unInitialized, ix_employees_branch_number:missing, ix_employees_branch_department_number:missing...(more: 1 unInitialized)]"
+          },
+          {
+            "id": "  └─TableRowIDScan_23(Probe)",
+            "estRows": "0.20",
+            "task": "cop[tikv]",
+            "access object": "table:employees",
+            "operator info": "keep order:false, stats:partial[uq_employees_employee_number:unInitialized, ix_employees_branch_number:missing, ix_employees_branch_department_number:missing...(more: 1 unInitialized)]"
+          }
+        ]
+      }
+    ],
+    "environment": {
+      "node": "v24.15.0",
+      "applicationDatabaseTouched": false,
+      "ddlExecuted": false,
+      "connectionFactory": "openDatabase unchanged",
+      "actualHttpPort": 4355,
+      "timingsIncludeRemoteNetwork": true,
+      "scope": "C-186 core integrity only; pool capacity and audit workers are separate checks"
+    },
+    "preflight": {
+      "counts": {
+        "write_operation_receipts": 0,
+        "users": 0,
+        "user_permission_overrides": 0,
+        "sessions": 0,
+        "roles": 0,
+        "role_permissions": 0,
+        "permissions": 0,
+        "numbering_series": 0,
+        "numbering_issuances": 0,
+        "numbering_counters": 0,
+        "employees": 0,
+        "departments": 0,
+        "branches": 0,
+        "auth_throttles": 0,
+        "audit_outbox": 0,
+        "audit_events": 0
+      },
+      "history": [
+        {
+          "hash": "28613c7d87709947e45105ac0489c2ff99d1e5beae4009dca9cb7b0c3f4541c8",
+          "created_at": "1795360011508"
+        },
+        {
+          "hash": "0c6666805e703a5b659f642ae1b1fc1bc294f68b36aa77b58e20e171ce70b927",
+          "created_at": "1795605194621"
+        }
+      ]
+    },
+    "cleanup": {
+      "remaining": {
+        "write_operation_receipts": 0,
+        "users": 0,
+        "user_permission_overrides": 0,
+        "sessions": 0,
+        "roles": 0,
+        "role_permissions": 0,
+        "permissions": 0,
+        "numbering_series": 0,
+        "numbering_issuances": 0,
+        "numbering_counters": 0,
+        "employees": 0,
+        "departments": 0,
+        "branches": 0,
+        "auth_throttles": 0,
+        "audit_outbox": 0,
+        "audit_events": 0
+      },
+      "history": [
+        {
+          "hash": "28613c7d87709947e45105ac0489c2ff99d1e5beae4009dca9cb7b0c3f4541c8",
+          "created_at": "1795360011508"
+        },
+        {
+          "hash": "0c6666805e703a5b659f642ae1b1fc1bc294f68b36aa77b58e20e171ce70b927",
+          "created_at": "1795605194621"
+        }
+      ],
+      "failures": [],
+      "passed": true
+    },
+    "connectionsClosed": true,
+    "completedAt": "2026-11-25T13:19:29.462Z"
+  },
+  "audit": {
+    "runId": "16dbfc41-551b-4a54-bf54-a17f20983ec4",
+    "actor": "2d39fed3-58b6-47ca-9623-973d17845e14",
+    "database": "madartest",
+    "startedAt": "2026-11-25T13:17:30.114Z",
+    "status": "passed",
+    "stage": "completed",
+    "environment": {
+      "node": "v24.15.0",
+      "testDatabase": "madartest",
+      "applicationDatabaseTouched": false,
+      "timingsIncludeRemoteNetwork": true,
+      "independentPools": 10,
+      "heldConnections": 10,
+      "schemaChanged": false,
+      "migrationHistoryChanged": false
+    },
+    "cases": [
+      {
+        "name": "clean_test_database_and_unused_actor",
+        "passed": true,
+        "tables": 16
+      },
+      {
+        "name": "two_real_audit_workers_40_events",
+        "passed": true,
+        "delivered": 40,
+        "distinctEventIds": 40,
+        "matchingIdsTimeActionResult": 40,
+        "cycles": 2
+      },
+      {
+        "name": "audit_index_and_bounded_reads_10040",
+        "passed": true,
+        "rows": 10040,
+        "pageSize": 26,
+        "samples": 30,
+        "concurrency": 10
+      }
+    ],
+    "latency": [
+      {
+        "name": "SELECT_1_network_included_10_connections",
+        "samples": 30,
+        "concurrency": 10,
+        "p50Ms": 103.488,
+        "p95Ms": 104.392,
+        "maxMs": 104.832,
+        "rawMs": [
+          103.824,
+          103.618,
+          103.399,
+          103.452,
+          103.508,
+          103.78,
+          103.135,
+          102.782,
+          103.449,
+          103.271,
+          103.488,
+          102.437,
+          103.191,
+          103.369,
+          103.508,
+          103.405,
+          101.784,
+          104.832,
+          103.639,
+          103.839,
+          102.651,
+          102.513,
+          104.268,
+          103.941,
+          104.32,
+          103.938,
+          102.738,
+          104.392,
+          104.107,
+          103.888
+        ]
+      },
+      {
+        "name": "audit_26_rows_10040_events_10_connections",
+        "samples": 30,
+        "concurrency": 10,
+        "p50Ms": 129.041,
+        "p95Ms": 142.373,
+        "maxMs": 147.606,
+        "rawMs": [
+          125.062,
+          130.505,
+          142.373,
+          131.28,
+          129.807,
+          129.041,
+          136.817,
+          127.984,
+          131.642,
+          127.6,
+          126.715,
+          129.898,
+          129.263,
+          135.358,
+          135.805,
+          147.606,
+          133.796,
+          134.469,
+          136.47,
+          131.088,
+          118.027,
+          116.356,
+          118.54,
+          116.894,
+          113.757,
+          114.912,
+          115.513,
+          114.272,
+          118.935,
+          111.597
+        ]
+      }
+    ],
+    "dispatch": {
+      "cycles": 2,
+      "summaries": [
+        [
+          {
+            "recovered": 0,
+            "claimed": 13,
+            "delivered": 13,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          },
+          {
+            "recovered": 0,
+            "claimed": 13,
+            "delivered": 13,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          }
+        ],
+        [
+          {
+            "recovered": 0,
+            "claimed": 7,
+            "delivered": 7,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          },
+          {
+            "recovered": 0,
+            "claimed": 7,
+            "delivered": 7,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          }
+        ]
+      ]
+    },
+    "plans": [
+      {
+        "name": "audit_actor_period_10040",
+        "rows": [
+          {
+            "id": "Projection_9",
+            "estRows": "2.50",
+            "task": "root",
+            "access object": "",
+            "operator info": "madartest.audit_events.event_id, cast(madartest.audit_events.occurred_at, var_string(23))->Column#18, madartest.audit_events.actor_user_id, madartest.audit_events.action, madartest.audit_events.result"
+          },
+          {
+            "id": "└─IndexLookUp_22",
+            "estRows": "2.50",
+            "task": "root",
+            "access object": "",
+            "operator info": "limit embedded(offset:0, count:26)"
+          },
+          {
+            "id": "  ├─Limit_21(Build)",
+            "estRows": "2.50",
+            "task": "cop[tikv]",
+            "access object": "",
+            "operator info": "offset:?, count:?"
+          },
+          {
+            "id": "  │ └─IndexRangeScan_19",
+            "estRows": "2.50",
+            "task": "cop[tikv]",
+            "access object": "table:audit_events, index:ix_audit_events_actor(actor_user_id, occurred_at, event_id)",
+            "operator info": "range:[? ?,? ?), keep order:true, desc, stats:pseudo"
+          },
+          {
+            "id": "  └─TableRowIDScan_20(Probe)",
+            "estRows": "2.50",
+            "task": "cop[tikv]",
+            "access object": "table:audit_events",
+            "operator info": "keep order:false, stats:pseudo"
+          }
+        ]
+      }
+    ],
+    "cleanup": {
+      "attempted": true,
+      "actorRemaining": {
+        "audit_events": 0,
+        "audit_outbox": 0
+      },
+      "remaining": {
+        "write_operation_receipts": 0,
+        "users": 0,
+        "roles": 0,
+        "user_permission_overrides": 0,
+        "numbering_series": 0,
+        "numbering_issuances": 0,
+        "permissions": 0,
+        "sessions": 0,
+        "role_permissions": 0,
+        "auth_throttles": 0,
+        "numbering_counters": 0,
+        "employees": 0,
+        "branches": 0,
+        "audit_outbox": 0,
+        "departments": 0,
+        "audit_events": 0
+      },
+      "passed": true,
+      "poolsClosed": 10
+    },
+    "errors": [],
+    "connectionIds": [
+      "767557816",
+      "767557818",
+      "767557820",
+      "767557822",
+      "767557824",
+      "767557826",
+      "767557828",
+      "767557830",
+      "767557832",
+      "767557834"
+    ],
+    "initialCounts": {
+      "write_operation_receipts": 0,
+      "users": 0,
+      "sessions": 0,
+      "roles": 0,
+      "user_permission_overrides": 0,
+      "role_permissions": 0,
+      "permissions": 0,
+      "numbering_issuances": 0,
+      "numbering_series": 0,
+      "numbering_counters": 0,
+      "employees": 0,
+      "branches": 0,
+      "auth_throttles": 0,
+      "audit_outbox": 0,
+      "departments": 0,
+      "audit_events": 0
+    },
+    "completedAt": "2026-11-25T13:18:11.525Z"
+  },
+  "productionPoolCheck": {
+    "startedAt": "2026-11-25T13:14:16.187Z",
+    "database": "madartest",
+    "connectionLimit": 5,
+    "waitForConnections": false,
+    "cases": [
+      {
+        "concurrency": 5,
+        "passed": true,
+        "successCount": 5,
+        "unavailableCount": 0,
+        "responses": [
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 2089
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 2654
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 3196
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 1000
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 1527
+          }
+        ]
+      },
+      {
+        "concurrency": 10,
+        "passed": false,
+        "successCount": 5,
+        "unavailableCount": 5,
+        "responses": [
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 979
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 2074
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 2622
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 1513
+          },
+          {
+            "status": 200,
+            "reason": null,
+            "ms": 3169
+          },
+          {
+            "status": 503,
+            "reason": "ORG_UNAVAILABLE",
+            "ms": 18
+          },
+          {
+            "status": 503,
+            "reason": "ORG_UNAVAILABLE",
+            "ms": 18
+          },
+          {
+            "status": 503,
+            "reason": "ORG_UNAVAILABLE",
+            "ms": 18
+          },
+          {
+            "status": 503,
+            "reason": "ORG_UNAVAILABLE",
+            "ms": 18
+          },
+          {
+            "status": 503,
+            "reason": "ORG_UNAVAILABLE",
+            "ms": 19
+          }
+        ]
+      }
+    ],
+    "cleanup": {
+      "counts": {
+        "write_operation_receipts": 0,
+        "users": 0,
+        "user_permission_overrides": 0,
+        "sessions": 0,
+        "roles": 0,
+        "role_permissions": 0,
+        "permissions": 0,
+        "numbering_series": 0,
+        "numbering_issuances": 0,
+        "numbering_counters": 0,
+        "employees": 0,
+        "departments": 0,
+        "branches": 0,
+        "auth_throttles": 0,
+        "audit_outbox": 0,
+        "audit_events": 0
+      },
+      "allRowsZero": true
+    },
+    "capacityProbe": {
+      "held": 5,
+      "sixthRejectedWithExpectedReason": true,
+      "recoveredAfterRelease": true
+    },
+    "status": "failed",
+    "completedAt": "2026-11-25T13:14:33.454Z"
+  },
+  "finalInventory": {
+    "at": "2026-11-25T13:19:54.516Z",
+    "database": "madartest",
+    "tls": true,
+    "counts": {
+      "audit_events": 0,
+      "audit_outbox": 0,
+      "auth_throttles": 0,
+      "branches": 0,
+      "departments": 0,
+      "employees": 0,
+      "numbering_counters": 0,
+      "numbering_issuances": 0,
+      "numbering_series": 0,
+      "permissions": 0,
+      "role_permissions": 0,
+      "roles": 0,
+      "sessions": 0,
+      "user_permission_overrides": 0,
+      "users": 0,
+      "write_operation_receipts": 0
+    },
+    "migrations": [
+      {
+        "hash": "28613c7d87709947e45105ac0489c2ff99d1e5beae4009dca9cb7b0c3f4541c8",
+        "created_at": 1795360011508
+      },
+      {
+        "hash": "0c6666805e703a5b659f642ae1b1fc1bc294f68b36aa77b58e20e171ce70b927",
+        "created_at": 1795605194621
+      }
+    ],
+    "indexes": 42,
+    "foreignKeys": 13
+  },
+  "comparison": {
+    "previousReport": "TIDB_TEST_RESULTS.json",
+    "previousRunId": "1fdc755d-69ef-4482-9fb6-4aa6432fd6bb",
+    "previousIntegrityPassed": true,
+    "currentIntegrityPassed": true,
+    "previousTenRequestSuccesses": 5,
+    "previousTenRequestUnavailable": 5,
+    "currentTenRequestSuccesses": 5,
+    "currentTenRequestUnavailable": 5,
+    "tenRequestOutcomeRepeated": true
+  },
+  "deferred": {
+    "physicalAndroidAndIphone": "User deferred under D-084; no device test performed",
+    "poolFix": "C-187 remains proposed and unimplemented"
+  }
+}

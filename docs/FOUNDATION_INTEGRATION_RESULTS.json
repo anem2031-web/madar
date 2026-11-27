@@ -1,0 +1,289 @@
+{
+  "runId": "8eadb471-872c-4811-8620-64d5bb1f9a7e",
+  "startedAt": "2026-11-25T14:01:20.077Z",
+  "environment": {
+    "database": "madartest",
+    "actualHttpServer": "localhost",
+    "node": "v24.15.0",
+    "timingsIncludeRemoteNetwork": true,
+    "productionDatabaseTouched": false,
+    "schemaChanges": false,
+    "globalSettingsChanged": false,
+    "connectionSourceSha256": "2722e0f767107ba640ae3a7276099875de2983fb020e7b5e6e2e144434d50458"
+  },
+  "cases": [
+    {
+      "name": "actual_login_create_user_and_temporary_password_change",
+      "passed": true,
+      "loginStatus": 200,
+      "requiredState": "password_change",
+      "protectedBefore": 401,
+      "changeStatus": 200,
+      "organizationStatus": 200,
+      "usersStatus": 403,
+      "targetAuthVersion": 2,
+      "elapsedMs": 13219.929
+    },
+    {
+      "name": "permission_override_revokes_session_and_next_login_enforces_grant_and_deny",
+      "passed": true,
+      "saveStatus": 200,
+      "targetAuthVersion": 3,
+      "oldSession": [
+        {
+          "path": "users.list",
+          "status": 401,
+          "code": "AUTH_REQUIRED",
+          "noStore": true,
+          "location": false,
+          "hasData": false
+        },
+        {
+          "path": "permissionOverrides.list",
+          "status": 401,
+          "code": "AUTH_REQUIRED",
+          "noStore": true,
+          "location": false,
+          "hasData": false
+        },
+        {
+          "path": "organization.listBranches",
+          "status": 401,
+          "code": "AUTH_REQUIRED",
+          "noStore": true,
+          "location": false,
+          "hasData": false
+        },
+        {
+          "path": "numberingSettings.list",
+          "status": 401,
+          "code": "AUTH_REQUIRED",
+          "noStore": true,
+          "location": false,
+          "hasData": false
+        },
+        {
+          "path": "audit.list",
+          "status": 401,
+          "code": "AUTH_REQUIRED",
+          "noStore": true,
+          "location": false,
+          "hasData": false
+        }
+      ],
+      "freshLoginStatus": 200,
+      "organizationStatus": 403,
+      "numberingStatus": 200,
+      "auditStatus": 200,
+      "elapsedMs": 12194.585
+    },
+    {
+      "name": "concurrent_numbering_duplicate_prefix_has_one_committed_series",
+      "passed": true,
+      "statuses": [
+        200,
+        409
+      ],
+      "reasons": [
+        "NUMBERING_DUPLICATE_PREFIX"
+      ],
+      "persisted": 1,
+      "latencyMs": [
+        986.904,
+        2879.567
+      ],
+      "concurrency": 2,
+      "elapsedMs": 2990.763
+    },
+    {
+      "name": "concurrent_numbering_update_same_version_has_one_winner",
+      "passed": true,
+      "statuses": [
+        200,
+        409
+      ],
+      "reasons": [
+        "NUMBERING_CONFLICT"
+      ],
+      "version": 2,
+      "concurrency": 2,
+      "latencyMs": [
+        1317.42,
+        2194.921
+      ],
+      "elapsedMs": 2299.474
+    },
+    {
+      "name": "logout_old_cookie_denied_across_all_readers_and_organization_write",
+      "passed": true,
+      "logoutStatus": 200,
+      "cookieRotated": true,
+      "oldSession": [
+        {
+          "path": "users.list",
+          "status": 401,
+          "code": "AUTH_REQUIRED",
+          "noStore": true,
+          "location": false,
+          "hasData": false
+        },
+        {
+          "path": "permissionOverrides.list",
+          "status": 401,
+          "code": "AUTH_REQUIRED",
+          "noStore": true,
+          "location": false,
+          "hasData": false
+        },
+        {
+          "path": "organization.listBranches",
+          "status": 401,
+          "code": "AUTH_REQUIRED",
+          "noStore": true,
+          "location": false,
+          "hasData": false
+        },
+        {
+          "path": "numberingSettings.list",
+          "status": 401,
+          "code": "AUTH_REQUIRED",
+          "noStore": true,
+          "location": false,
+          "hasData": false
+        },
+        {
+          "path": "audit.list",
+          "status": 401,
+          "code": "AUTH_REQUIRED",
+          "noStore": true,
+          "location": false,
+          "hasData": false
+        }
+      ],
+      "writeStatus": 401,
+      "receipts": 0,
+      "branches": 0,
+      "otherAdminStatus": 200,
+      "elapsedMs": 5775.032
+    },
+    {
+      "name": "audit_remains_secret_free_and_no_number_was_issued",
+      "passed": true,
+      "auditEvents": 31,
+      "counters": 0,
+      "issuances": 0,
+      "secretsAbsent": true,
+      "elapsedMs": 328.657
+    }
+  ],
+  "limits": [
+    "Representative integration cases, not every users/permissions/numbering mutation or failure combination.",
+    "Concurrent HTTP requests use separate admin sessions but share role locks; overlapping INSERT execution is not claimed.",
+    "No numbering issuance engine, physical-device test, Railway benchmark or production write is performed."
+  ],
+  "preflight": {
+    "database": "madartest",
+    "counts": {
+      "audit_events": 0,
+      "audit_outbox": 0,
+      "auth_throttles": 0,
+      "branches": 0,
+      "departments": 0,
+      "employees": 0,
+      "numbering_counters": 0,
+      "numbering_issuances": 0,
+      "numbering_series": 0,
+      "permissions": 0,
+      "role_permissions": 0,
+      "roles": 0,
+      "sessions": 0,
+      "user_permission_overrides": 0,
+      "users": 0,
+      "write_operation_receipts": 0
+    },
+    "migrations": [
+      {
+        "hash": "28613c7d87709947e45105ac0489c2ff99d1e5beae4009dca9cb7b0c3f4541c8",
+        "created_at": 1795360011508
+      },
+      {
+        "hash": "0c6666805e703a5b659f642ae1b1fc1bc294f68b36aa77b58e20e171ce70b927",
+        "created_at": 1795605194621
+      }
+    ],
+    "indexes": 42,
+    "foreignKeys": 13,
+    "tls": true
+  },
+  "configuration": {
+    "connectionLimit": 10,
+    "queueLimit": 10,
+    "acquisitionTimeoutMs": 3000,
+    "active": 0,
+    "waiting": 0,
+    "connecting": 0,
+    "closed": false,
+    "admitted": 23,
+    "timedOut": 0,
+    "busy": 0,
+    "totalWaitMs": 753.8514999999996,
+    "totalExecutionMs": 5730.1936000000005,
+    "maxWaitMs": 752.6032000000001,
+    "maxExecutionMs": 3190.2322,
+    "releaseFailures": 0
+  },
+  "finalDiagnosticsBeforeCleanup": {
+    "connectionLimit": 10,
+    "queueLimit": 10,
+    "acquisitionTimeoutMs": 3000,
+    "active": 0,
+    "waiting": 0,
+    "connecting": 0,
+    "closed": false,
+    "admitted": 80,
+    "timedOut": 0,
+    "busy": 0,
+    "totalWaitMs": 1965.2699999999786,
+    "totalExecutionMs": 49343.24129999999,
+    "maxWaitMs": 752.6032000000001,
+    "maxExecutionMs": 3190.2322,
+    "releaseFailures": 0
+  },
+  "cleanup": {
+    "database": "madartest",
+    "counts": {
+      "audit_events": 0,
+      "audit_outbox": 0,
+      "auth_throttles": 0,
+      "branches": 0,
+      "departments": 0,
+      "employees": 0,
+      "numbering_counters": 0,
+      "numbering_issuances": 0,
+      "numbering_series": 0,
+      "permissions": 0,
+      "role_permissions": 0,
+      "roles": 0,
+      "sessions": 0,
+      "user_permission_overrides": 0,
+      "users": 0,
+      "write_operation_receipts": 0
+    },
+    "migrations": [
+      {
+        "hash": "28613c7d87709947e45105ac0489c2ff99d1e5beae4009dca9cb7b0c3f4541c8",
+        "created_at": 1795360011508
+      },
+      {
+        "hash": "0c6666805e703a5b659f642ae1b1fc1bc294f68b36aa77b58e20e171ce70b927",
+        "created_at": 1795605194621
+      }
+    ],
+    "indexes": 42,
+    "foreignKeys": 13,
+    "passed": true
+  },
+  "connectionClosed": true,
+  "finishedAt": "2026-11-25T14:02:14.595Z",
+  "status": "passed"
+}

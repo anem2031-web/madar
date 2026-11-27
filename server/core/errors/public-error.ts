@@ -3,6 +3,7 @@ import { genericErrorCodes, isPublicErrorCode, isRequestId, messageKeyFor } from
 import type { GenericErrorCode, PublicErrorBody, PublicErrorCode } from '../../../shared/errors/contracts.ts';
 import { currentRequestId } from './request-context.ts';
 import { logTechnicalFailure } from './technical-log.ts';
+import { databaseAcquisitionReason } from './database-failure.ts';
 
 export function knownReason<T extends string>(error: unknown, allowed: readonly T[]): T | undefined {
   if (!error || typeof error !== 'object') return undefined;
@@ -21,7 +22,7 @@ export function formatPublicTRPCError({ shape, error, requestId, reason }: {
   shape: TRPCShape; error: unknown; requestId?: string; reason?: unknown;
 }) {
   const transport = (genericErrorCodes as readonly string[]).includes(shape.data.code) ? shape.data.code as GenericErrorCode : 'INTERNAL_SERVER_ERROR';
-  const response = safePublicError(reason, requestId, transport);
+  const response = safePublicError(databaseAcquisitionReason(error) ?? reason, requestId, transport);
   if (shape.data.httpStatus >= 500 || !isPublicErrorCode(reason)) {
     logTechnicalFailure({ requestId: response.requestId, scope: 'http', operation: transport === 'NOT_FOUND' ? 'not-found' : 'response',
       code: shape.data.httpStatus >= 500 ? 'TRPC_INTERNAL_FAILURE' : transport === 'NOT_FOUND' ? 'TRPC_NOT_FOUND' : 'TRPC_INVALID_REQUEST', error });

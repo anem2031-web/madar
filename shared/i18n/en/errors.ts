@@ -10,6 +10,8 @@ export default {
   forbidden: 'You do not have permission to perform this action.',
   conflict: 'The data has changed. Reload it and review its state before trying again.',
   serviceUnavailable: 'The connection could not complete right now. Check the connection and try again.',
+  databaseBusy: 'The system is busy right now. Wait a little and review the operation status before trying again.',
+  databaseWaitTimeout: 'The wait for the service timed out. Refresh the data and review the operation status before trying again.',
   requestFailed: 'The request could not be completed. Keep the request reference if shown and contact your system administrator if the problem continues.',
   reviewRequired: 'Actions are temporarily paused. Refresh the list and review the account state before trying again.',
 };

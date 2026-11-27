@@ -11,7 +11,7 @@ type Scope = typeof technicalScopes[number];
 type Operation = typeof technicalOperations[number];
 type Code = typeof technicalCodes[number];
 export type TechnicalFailure = { requestId?: string; scope: Scope; operation: Operation; code: Code; error?: unknown };
-type Category = 'connection' | 'timeout' | 'transaction-conflict' | 'invalid-request' | 'unexpected';
+type Category = 'busy' | 'connection' | 'timeout' | 'transaction-conflict' | 'invalid-request' | 'unexpected';
 const value = (object: unknown, key: string) => {
   if (!object || typeof object !== 'object') return undefined;
   try {
@@ -25,6 +25,9 @@ export function classifyTechnicalFailure(error: unknown): Category {
   for (let depth = 0; depth < 6 && current && typeof current === 'object' && !seen.has(current); depth++) {
     seen.add(current);
     const code = value(current, 'code'); const errno = value(current, 'errno'); const type = value(current, 'type');
+    if (code === 'DB_BUSY') return 'busy';
+    if (code === 'DB_WAIT_TIMEOUT') return 'timeout';
+    if (code === 'DB_CLOSED') return 'connection';
     if (code === 'ETIMEDOUT' || code === 'PROTOCOL_SEQUENCE_TIMEOUT' || code === 'ER_LOCK_WAIT_TIMEOUT' || errno === 1205) return 'timeout';
     if (code === 'ER_LOCK_DEADLOCK' || code === 'ER_DUP_ENTRY' || errno === 1213 || errno === 1062) return 'transaction-conflict';
     if (['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EHOSTUNREACH', 'PROTOCOL_CONNECTION_LOST', 'ER_ACCESS_DENIED_ERROR', 'ER_BAD_DB_ERROR'].includes(code as string)) return 'connection';

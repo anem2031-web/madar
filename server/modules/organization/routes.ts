@@ -2,6 +2,7 @@ import { TRPCError } from '@trpc/server';
 import { authErrorCodes, organizationErrorCodes } from '../../../shared/errors/contracts.ts';
 import { knownReason } from '../../core/errors/public-error.ts';
 import { logTechnicalFailure } from '../../core/errors/technical-log.ts';
+import { databaseAcquisitionFailure } from '../../core/errors/database-failure.ts';
 import { AuthFault } from '../auth/errors.ts';
 import { authRequest } from '../auth/routes.ts';
 import type { AuthRequest } from '../auth/service.ts';
@@ -18,6 +19,8 @@ export async function organizationRoute<T>(context: OrganizationContext,
     if (!context.organization) throw new OrganizationFault('ORG_UNAVAILABLE');
     return await work(context.organization, request);
   } catch (error) {
+    const acquisitionFailure = databaseAcquisitionFailure(error, { requestId: request.requestId, scope: 'organization', code: 'ORG_STORE_FAILURE' });
+    if (acquisitionFailure) throw acquisitionFailure;
     const reason = (error instanceof OrganizationFault ? knownReason(error, organizationErrorCodes) : error instanceof AuthFault ? knownReason(error, authErrorCodes) : undefined) ?? 'ORG_UNAVAILABLE';
     if (reason === 'ORG_UNAVAILABLE') logTechnicalFailure({ requestId: request.requestId, scope: 'organization', operation: 'request', code: 'ORG_STORE_FAILURE', error });
     const code = reason === 'ORG_UNAVAILABLE' ? 'SERVICE_UNAVAILABLE'

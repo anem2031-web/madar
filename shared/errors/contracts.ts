@@ -10,6 +10,7 @@ export const numberingErrorCodes = ['NUMBERING_INVALID_INPUT', 'NUMBERING_INVALI
   'NUMBERING_NOT_FOUND', 'NUMBERING_CONFLICT', 'NUMBERING_LOCKED', 'NUMBERING_UNAVAILABLE'] as const;
 export const auditErrorCodes = ['AUDIT_INVALID_INPUT', 'AUDIT_NOT_FOUND', 'AUDIT_UNAVAILABLE'] as const;
 export const genericErrorCodes = ['PARSE_ERROR', 'BAD_REQUEST', 'PAYLOAD_TOO_LARGE', 'UNSUPPORTED_MEDIA_TYPE', 'NOT_FOUND', 'METHOD_NOT_SUPPORTED',
+  'DB_BUSY', 'DB_WAIT_TIMEOUT', 'DB_CLOSED',
   'TIMEOUT', 'CONFLICT', 'TOO_MANY_REQUESTS', 'UNAUTHORIZED', 'FORBIDDEN', 'INTERNAL_SERVER_ERROR', 'SERVICE_UNAVAILABLE',
   'NOT_IMPLEMENTED', 'BAD_GATEWAY', 'GATEWAY_TIMEOUT', 'PAYMENT_REQUIRED', 'PRECONDITION_FAILED', 'UNPROCESSABLE_CONTENT',
   'PRECONDITION_REQUIRED', 'CLIENT_CLOSED_REQUEST'] as const;
@@ -18,7 +19,7 @@ export const publicErrorCodes = [...authErrorCodes, ...usersErrorCodes, ...overr
 export type PublicErrorCode = typeof publicErrorCodes[number];
 export type GenericErrorCode = typeof genericErrorCodes[number];
 export type PublicErrorMessageKey = 'invalidRequest' | 'requestTooLarge' | 'unsupportedMediaType' | 'notFound' | 'methodNotAllowed'
-  | 'rateLimited' | 'sessionExpired' | 'forbidden' | 'conflict' | 'serviceUnavailable' | 'requestFailed';
+  | 'rateLimited' | 'sessionExpired' | 'forbidden' | 'conflict' | 'databaseBusy' | 'databaseWaitTimeout' | 'serviceUnavailable' | 'requestFailed';
 export type PublicErrorBody = { code: PublicErrorCode; messageKey: PublicErrorMessageKey; requestId: string };
 const knownCodes = new Set<string>(publicErrorCodes);
 export function isPublicErrorCode(value: unknown): value is PublicErrorCode { return typeof value === 'string' && knownCodes.has(value); }
@@ -26,6 +27,9 @@ export function isRequestId(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 export function messageKeyFor(code: PublicErrorCode): PublicErrorMessageKey {
+  if (code === 'DB_BUSY') return 'databaseBusy';
+  if (code === 'DB_WAIT_TIMEOUT') return 'databaseWaitTimeout';
+  if (code === 'DB_CLOSED') return 'serviceUnavailable';
   if (code === 'PAYLOAD_TOO_LARGE') return 'requestTooLarge';
   if (code === 'UNSUPPORTED_MEDIA_TYPE') return 'unsupportedMediaType';
   if (code === 'METHOD_NOT_SUPPORTED') return 'methodNotAllowed';

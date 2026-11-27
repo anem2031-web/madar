@@ -5,6 +5,7 @@ import { authErrorCodes } from '../../../shared/errors/contracts.ts';
 import { requestIdFor } from '../../core/errors/request-context.ts';
 import { knownReason } from '../../core/errors/public-error.ts';
 import { logTechnicalFailure } from '../../core/errors/technical-log.ts';
+import { databaseAcquisitionFailure } from '../../core/errors/database-failure.ts';
 import { AuthFault } from './errors.ts';
 import type { AuthReason } from './errors.ts';
 import type { AuthRequest, AuthResult, AuthService } from './service.ts';
@@ -35,6 +36,8 @@ export async function authRoute(context: AuthContext, work: (auth: AuthService, 
     }
     return result.view;
   } catch (error) {
+    const acquisitionFailure = databaseAcquisitionFailure(error, { requestId: request.requestId, scope: 'auth', code: 'AUTH_STORE_FAILURE' });
+    if (acquisitionFailure) throw acquisitionFailure;
     const reason: AuthReason = (error instanceof AuthFault ? knownReason(error, authErrorCodes) : error instanceof PasswordBusyError ? 'AUTH_RATE_LIMITED' : undefined) ?? 'AUTH_UNAVAILABLE';
     if (reason === 'AUTH_UNAVAILABLE') logTechnicalFailure({ requestId: request.requestId, scope: 'auth', operation: 'request', code: 'AUTH_STORE_FAILURE', error });
     const code = reason === 'AUTH_UNAVAILABLE' ? 'SERVICE_UNAVAILABLE'

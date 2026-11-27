@@ -2,6 +2,7 @@ import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import { afterEach, beforeAll, expect, test, vi } from 'vitest';
 import { createApp } from '../../../app.ts';
+import { DatabaseAcquisitionError } from '../../database/acquisition.ts';
 import { hashPassword } from '../../auth/password.ts';
 import { UsersFault } from '../../../modules/users/errors.ts';
 import { createMemoryUsersStore } from '../../../modules/users/tests/memory-store.ts';
@@ -62,6 +63,30 @@ test('all six service boundaries return one safe classified log and the same ser
     expect(emitted).toContain(requestId);
     expect(emitted).not.toMatch(new RegExp(`${privateMarker}|private-user|private.invalid|SELECT|mysql://|cookie|stack|sqlMessage`, 'i'));
     expect(JSON.stringify(body)).not.toMatch(new RegExp(`${privateMarker}|mysql://|private.invalid|SELECT|stack|sqlMessage`, 'i'));
+  }
+});
+
+test('all six boundaries preserve busy and acquisition-timeout reasons with503 instead of password or permission errors', async () => {
+  const sink = vi.spyOn(console, 'error').mockImplementation(() => {});
+  let failureCode: 'DB_BUSY' | 'DB_WAIT_TIMEOUT' | 'DB_CLOSED' = 'DB_BUSY';
+  const broken = { async transaction(): Promise<never> { throw new Error(privateMarker, { cause: new DatabaseAcquisitionError(failureCode) }); } };
+  const origin = await serve({ authStore: broken, usersStore: broken, permissionOverridesStore: broken, organizationStore: broken,
+    numberingSettingsStore: broken, auditStore: broken, authConfig: { origin: configuredOrigin, secret: 'synthetic-admission-secret-'.repeat(3) } });
+  const endpoints = [['auth.session', undefined], ['users.list', undefined], ['permissionOverrides.list', undefined],
+    ['organization.listBranches', undefined], ['numberingSettings.list', undefined], ['audit.list', period]] as const;
+  for (const code of ['DB_BUSY', 'DB_WAIT_TIMEOUT', 'DB_CLOSED'] as const) {
+    failureCode = code;
+    for (const [path, input] of endpoints) {
+      const before = sink.mock.calls.length;
+      const response = await fetch(`${origin}/api/trpc/${path}${input ? '?input=' + encodeURIComponent(JSON.stringify(input)) : ''}`);
+      const body = await response.json(); const requestId = reference(response, body);
+      expect(response.status).toBe(503); expect(body.error.message).toBe(code);
+      expect(body.error.data.messageKey).toBe(code === 'DB_BUSY' ? 'databaseBusy' : code === 'DB_WAIT_TIMEOUT' ? 'databaseWaitTimeout' : 'serviceUnavailable');
+      expect(sink.mock.calls.length - before).toBe(1);
+      expect(JSON.parse(sink.mock.calls[before][0])).toMatchObject({ requestId,
+        category: code === 'DB_BUSY' ? 'busy' : code === 'DB_WAIT_TIMEOUT' ? 'timeout' : 'connection' });
+      expect(JSON.stringify([body, sink.mock.calls.slice(before)])).not.toContain(privateMarker);
+    }
   }
 });
 

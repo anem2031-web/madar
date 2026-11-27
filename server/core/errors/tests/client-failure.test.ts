@@ -56,3 +56,10 @@ test('a committed-write refresh failure retains the failed read reference and a 
   expect(relabelRequestFailure(null, 'USERS_REFRESH_FAILED')).toEqual({ code: 'USERS_REFRESH_FAILED' });
   expect(readFailure.code).toBe('SERVICE_UNAVAILABLE');
 });
+
+test('busy and acquisition deadlines are precise for reads and retain uncertain-write review semantics', () => {
+  for (const code of ['DB_BUSY', 'DB_WAIT_TIMEOUT', 'DB_CLOSED']) {
+    expect(readRequestFailure(failure(code), allowed, 'USERS_UNAVAILABLE')).toEqual({ code, requestId });
+    expect(readRequestFailure(failure(code), allowed, 'USERS_UNCERTAIN', true)).toEqual({ code: 'USERS_UNCERTAIN', requestId });
+  }
+});

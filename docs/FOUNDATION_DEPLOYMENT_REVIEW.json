@@ -1,0 +1,110 @@
+{
+  "checkedAt": "2026-11-25T13:55:43.754Z",
+  "origin": "https://madar-production-da2cd54b.up.railway.app",
+  "mode": "public-read-only-no-cookie",
+  "productionBusinessWrites": false,
+  "requests": [
+    {
+      "path": "/",
+      "status": 200,
+      "cacheControl": "no-cache",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/health",
+      "status": 200,
+      "cacheControl": "no-store",
+      "contentType": "application/json; charset=utf-8",
+      "ready": true
+    },
+    {
+      "path": "/users",
+      "status": 200,
+      "cacheControl": "no-cache",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/permissions",
+      "status": 200,
+      "cacheControl": "no-cache",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/organization",
+      "status": 200,
+      "cacheControl": "no-cache",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/settings/numbering",
+      "status": 200,
+      "cacheControl": "no-cache",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/audit",
+      "status": 200,
+      "cacheControl": "no-cache",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/api/trpc/users.list",
+      "status": 401,
+      "cacheControl": "no-store",
+      "safeCode": "AUTH_REQUIRED",
+      "hasResult": false,
+      "referenceMatches": true
+    },
+    {
+      "path": "/api/trpc/permissionOverrides.list",
+      "status": 401,
+      "cacheControl": "no-store",
+      "safeCode": "AUTH_REQUIRED",
+      "hasResult": false,
+      "referenceMatches": true
+    },
+    {
+      "path": "/api/trpc/organization.listBranches",
+      "status": 401,
+      "cacheControl": "no-store",
+      "safeCode": "AUTH_REQUIRED",
+      "hasResult": false,
+      "referenceMatches": true
+    },
+    {
+      "path": "/api/trpc/numberingSettings.list",
+      "status": 401,
+      "cacheControl": "no-store",
+      "safeCode": "AUTH_REQUIRED",
+      "hasResult": false,
+      "referenceMatches": true
+    },
+    {
+      "path": "/api/trpc/audit.list",
+      "status": 401,
+      "cacheControl": "no-store",
+      "safeCode": "AUTH_REQUIRED",
+      "hasResult": false,
+      "referenceMatches": true
+    }
+  ],
+  "assets": [
+    {
+      "path": "/assets/index-B_RAAfGd.js",
+      "status": 200,
+      "bytes": 413359,
+      "sha256": "f3dfa956431587bfecaac0c9703d26d4d872b1409f53b2ffb8c825005e93e6c3",
+      "localFileExists": false,
+      "matchesLocal": false
+    },
+    {
+      "path": "/assets/index-d0R72eu4.css",
+      "status": 200,
+      "bytes": 33447,
+      "sha256": "c08677c89f30b61c9d72b83a482efa0d427cd79bafd77e3e27f10bfdd6b1cd11",
+      "localFileExists": true,
+      "matchesLocal": true
+    }
+  ],
+  "assetsMatchCurrent": false
+}

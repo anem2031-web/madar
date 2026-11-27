@@ -2,7 +2,8 @@ import { genericErrorCodes, isRequestId } from '../../../shared/errors/contracts
 
 export type RequestFailure = { code: string; requestId?: string };
 const genericCodes = new Set<string>(genericErrorCodes);
-const uncertainWriteCodes = new Set(['INTERNAL_SERVER_ERROR', 'SERVICE_UNAVAILABLE', 'TIMEOUT', 'BAD_GATEWAY', 'GATEWAY_TIMEOUT', 'CLIENT_CLOSED_REQUEST']);
+const uncertainWriteCodes = new Set(['INTERNAL_SERVER_ERROR', 'SERVICE_UNAVAILABLE', 'TIMEOUT', 'BAD_GATEWAY', 'GATEWAY_TIMEOUT', 'CLIENT_CLOSED_REQUEST',
+  'DB_BUSY', 'DB_WAIT_TIMEOUT', 'DB_CLOSED']);
 const aliases: Record<string, string> = { UNAUTHORIZED: 'AUTH_REQUIRED', FORBIDDEN: 'AUTH_FORBIDDEN' };
 
 export function requestReference(error: unknown): string | undefined {

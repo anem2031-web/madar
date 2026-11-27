@@ -32,3 +32,13 @@ test('transport and local validation feedback omit unavailable or malformed refe
     expect(feedback).toContain('راجع البيانات.'); expect(feedback).not.toContain('مرجع الطلب'); expect(feedback).not.toContain('private'); expect(feedback).not.toContain('secret');
   }
 });
+
+test('busy and waiting-timeout messages are translated independently of password and access messages', () => {
+  for (const language of ['ar', 'en'] as const) {
+    for (const [code, key] of [['DB_BUSY', 'databaseBusy'], ['DB_WAIT_TIMEOUT', 'databaseWaitTimeout']] as const) {
+      const html = renderToStaticMarkup(createElement(RequestFailure, { message: 'Private SQL password stack', code, requestId, language }));
+      expect(html).toContain(errorMessages[language][key]); expect(html).toContain(requestId);
+      expect(html).not.toMatch(/Private|SQL|password stack|DB_BUSY|DB_WAIT_TIMEOUT/);
+    }
+  }
+});

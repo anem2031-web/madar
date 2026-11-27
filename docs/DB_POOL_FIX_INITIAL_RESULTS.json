@@ -1,0 +1,676 @@
+{
+  "runId": "e15a8729-4b2c-4ab6-bfbc-4a8867323f9b",
+  "startedAt": "2026-11-25T13:38:53.262Z",
+  "environment": {
+    "database": "madartest",
+    "actualHttpServer": "localhost",
+    "timingsIncludeRemoteNetwork": true,
+    "node": "v24.15.0",
+    "productionDatabaseTouched": false,
+    "schemaChanges": false,
+    "globalSettingsChanged": false
+  },
+  "cases": [
+    {
+      "name": "one_pool_http_read_5_with_audit",
+      "passed": true,
+      "concurrency": 5,
+      "successful": 5,
+      "outcomes": [
+        {
+          "status": 200,
+          "elapsedMs": 2380.837
+        },
+        {
+          "status": 200,
+          "elapsedMs": 1810.584
+        },
+        {
+          "status": 200,
+          "elapsedMs": 2978.835
+        },
+        {
+          "status": 200,
+          "elapsedMs": 1248.185
+        },
+        {
+          "status": 200,
+          "elapsedMs": 3558.986
+        }
+      ],
+      "latency": {
+        "samples": 5,
+        "p50Ms": 2380.837,
+        "p95Ms": 3558.986,
+        "maxMs": 3558.986
+      },
+      "before": {
+        "connectionLimit": 5,
+        "queueLimit": 10,
+        "acquisitionTimeoutMs": 3000,
+        "active": 0,
+        "waiting": 0,
+        "connecting": 0,
+        "closed": false,
+        "admitted": 23,
+        "timedOut": 0,
+        "busy": 0,
+        "totalWaitMs": 662.6515999999997,
+        "totalExecutionMs": 5526.9050000000025,
+        "maxWaitMs": 661.4919,
+        "maxExecutionMs": 2883.9180000000006,
+        "releaseFailures": 0
+      },
+      "after": {
+        "connectionLimit": 5,
+        "queueLimit": 10,
+        "acquisitionTimeoutMs": 3000,
+        "active": 0,
+        "waiting": 0,
+        "connecting": 0,
+        "closed": false,
+        "admitted": 32,
+        "timedOut": 0,
+        "busy": 0,
+        "totalWaitMs": 5557.987499999999,
+        "totalExecutionMs": 15361.249900000003,
+        "maxWaitMs": 1129.9237999999996,
+        "maxExecutionMs": 2883.9180000000006,
+        "releaseFailures": 0
+      },
+      "auditWorkers": [
+        "fulfilled",
+        "fulfilled"
+      ]
+    },
+    {
+      "name": "one_pool_http_write_5_with_audit",
+      "passed": true,
+      "concurrency": 5,
+      "successful": 5,
+      "outcomes": [
+        {
+          "status": 200,
+          "elapsedMs": 3082.895
+        },
+        {
+          "status": 200,
+          "elapsedMs": 1328.351
+        },
+        {
+          "status": 200,
+          "elapsedMs": 2204.537
+        },
+        {
+          "status": 200,
+          "elapsedMs": 3958.201
+        },
+        {
+          "status": 200,
+          "elapsedMs": 4840.602
+        }
+      ],
+      "latency": {
+        "samples": 5,
+        "p50Ms": 3082.895,
+        "p95Ms": 4840.602,
+        "maxMs": 4840.602
+      },
+      "before": {
+        "connectionLimit": 5,
+        "queueLimit": 10,
+        "acquisitionTimeoutMs": 3000,
+        "active": 0,
+        "waiting": 0,
+        "connecting": 0,
+        "closed": false,
+        "admitted": 32,
+        "timedOut": 0,
+        "busy": 0,
+        "totalWaitMs": 5557.987499999999,
+        "totalExecutionMs": 15361.249900000003,
+        "maxWaitMs": 1129.9237999999996,
+        "maxExecutionMs": 2883.9180000000006,
+        "releaseFailures": 0
+      },
+      "after": {
+        "connectionLimit": 5,
+        "queueLimit": 10,
+        "acquisitionTimeoutMs": 3000,
+        "active": 0,
+        "waiting": 0,
+        "connecting": 0,
+        "closed": false,
+        "admitted": 56,
+        "timedOut": 0,
+        "busy": 0,
+        "totalWaitMs": 9078.96069999999,
+        "totalExecutionMs": 35908.55320000001,
+        "maxWaitMs": 1315.3912,
+        "maxExecutionMs": 4719.209000000001,
+        "releaseFailures": 0
+      },
+      "auditWorkers": [
+        "fulfilled",
+        "fulfilled"
+      ]
+    },
+    {
+      "name": "one_pool_http_read_10_with_audit",
+      "passed": false,
+      "concurrency": 10,
+      "successful": 9,
+      "outcomes": [
+        {
+          "status": 200,
+          "elapsedMs": 2087.144
+        },
+        {
+          "status": 200,
+          "elapsedMs": 2625.76
+        },
+        {
+          "status": 200,
+          "elapsedMs": 984.291
+        },
+        {
+          "status": 200,
+          "elapsedMs": 1535.431
+        },
+        {
+          "status": 200,
+          "elapsedMs": 3201.109
+        },
+        {
+          "status": 200,
+          "elapsedMs": 3752.582
+        },
+        {
+          "status": 200,
+          "elapsedMs": 4304.934
+        },
+        {
+          "status": 200,
+          "elapsedMs": 4853.84
+        },
+        {
+          "status": 200,
+          "elapsedMs": 5412.577
+        },
+        {
+          "status": 503,
+          "code": "DB_WAIT_TIMEOUT",
+          "elapsedMs": 3007.891
+        }
+      ],
+      "latency": {
+        "samples": 10,
+        "p50Ms": 3007.891,
+        "p95Ms": 5412.577,
+        "maxMs": 5412.577
+      },
+      "before": {
+        "connectionLimit": 5,
+        "queueLimit": 10,
+        "acquisitionTimeoutMs": 3000,
+        "active": 0,
+        "waiting": 0,
+        "connecting": 0,
+        "closed": false,
+        "admitted": 56,
+        "timedOut": 0,
+        "busy": 0,
+        "totalWaitMs": 9078.96069999999,
+        "totalExecutionMs": 35908.55320000001,
+        "maxWaitMs": 1315.3912,
+        "maxExecutionMs": 4719.209000000001,
+        "releaseFailures": 0
+      },
+      "after": {
+        "connectionLimit": 5,
+        "queueLimit": 10,
+        "acquisitionTimeoutMs": 3000,
+        "active": 0,
+        "waiting": 0,
+        "connecting": 0,
+        "closed": false,
+        "admitted": 67,
+        "timedOut": 3,
+        "busy": 0,
+        "totalWaitMs": 16495.104499999987,
+        "totalExecutionMs": 57414.29900000001,
+        "maxWaitMs": 2617.9490000000005,
+        "maxExecutionMs": 4719.209000000001,
+        "releaseFailures": 0
+      },
+      "auditWorkers": [
+        "rejected",
+        "rejected"
+      ]
+    },
+    {
+      "name": "one_pool_http_write_10_with_audit",
+      "passed": false,
+      "concurrency": 10,
+      "successful": 7,
+      "outcomes": [
+        {
+          "status": 200,
+          "elapsedMs": 7096.281
+        },
+        {
+          "status": 200,
+          "elapsedMs": 1345.457
+        },
+        {
+          "status": 503,
+          "code": "DB_WAIT_TIMEOUT",
+          "elapsedMs": 3010.371
+        },
+        {
+          "status": 503,
+          "code": "DB_WAIT_TIMEOUT",
+          "elapsedMs": 3011.183
+        },
+        {
+          "status": 200,
+          "elapsedMs": 2334.962
+        },
+        {
+          "status": 503,
+          "code": "DB_WAIT_TIMEOUT",
+          "elapsedMs": 3011.807
+        },
+        {
+          "status": 200,
+          "elapsedMs": 3225.032
+        },
+        {
+          "status": 200,
+          "elapsedMs": 5301.039
+        },
+        {
+          "status": 200,
+          "elapsedMs": 4105.217
+        },
+        {
+          "status": 200,
+          "elapsedMs": 6196.923
+        }
+      ],
+      "latency": {
+        "samples": 10,
+        "p50Ms": 3011.807,
+        "p95Ms": 7096.281,
+        "maxMs": 7096.281
+      },
+      "before": {
+        "connectionLimit": 5,
+        "queueLimit": 10,
+        "acquisitionTimeoutMs": 3000,
+        "active": 0,
+        "waiting": 0,
+        "connecting": 0,
+        "closed": false,
+        "admitted": 67,
+        "timedOut": 3,
+        "busy": 0,
+        "totalWaitMs": 16495.104499999987,
+        "totalExecutionMs": 57414.29900000001,
+        "maxWaitMs": 2617.9490000000005,
+        "maxExecutionMs": 4719.209000000001,
+        "releaseFailures": 0
+      },
+      "after": {
+        "connectionLimit": 5,
+        "queueLimit": 10,
+        "acquisitionTimeoutMs": 3000,
+        "active": 0,
+        "waiting": 0,
+        "connecting": 0,
+        "closed": false,
+        "admitted": 76,
+        "timedOut": 8,
+        "busy": 0,
+        "totalWaitMs": 20371.219699999987,
+        "totalExecutionMs": 83312.80870000001,
+        "maxWaitMs": 2617.9490000000005,
+        "maxExecutionMs": 5190.025599999997,
+        "releaseFailures": 0
+      },
+      "auditWorkers": [
+        "rejected",
+        "rejected"
+      ]
+    },
+    {
+      "name": "same_operation_concurrent_exactly_once",
+      "passed": false,
+      "callers": 10,
+      "successful": 7,
+      "receipts": 1,
+      "branches": 1,
+      "created": 1,
+      "outcomes": [
+        {
+          "status": 200,
+          "elapsedMs": 3956.535
+        },
+        {
+          "status": 200,
+          "elapsedMs": 4851.639
+        },
+        {
+          "status": 200,
+          "elapsedMs": 5731.452
+        },
+        {
+          "status": 200,
+          "elapsedMs": 6638.492
+        },
+        {
+          "status": 503,
+          "code": "DB_WAIT_TIMEOUT",
+          "elapsedMs": 3012.396
+        },
+        {
+          "status": 503,
+          "code": "DB_WAIT_TIMEOUT",
+          "elapsedMs": 3012.402
+        },
+        {
+          "status": 200,
+          "elapsedMs": 2180.732
+        },
+        {
+          "status": 200,
+          "elapsedMs": 1304.611
+        },
+        {
+          "status": 503,
+          "code": "DB_WAIT_TIMEOUT",
+          "elapsedMs": 3012.257
+        },
+        {
+          "status": 200,
+          "elapsedMs": 3042.676
+        }
+      ],
+      "latency": {
+        "samples": 10,
+        "p50Ms": 3012.402,
+        "p95Ms": 6638.492,
+        "maxMs": 6638.492
+      }
+    },
+    {
+      "name": "changed_input_rejected",
+      "passed": true,
+      "firstStatus": 200,
+      "conflictStatus": 409,
+      "code": "ORG_OPERATION_CONFLICT"
+    },
+    {
+      "name": "optimistic_version_one_winner",
+      "passed": true,
+      "statuses": [
+        409,
+        200
+      ],
+      "version": 2
+    },
+    {
+      "name": "hr_write_forbidden_without_receipt",
+      "passed": true,
+      "status": 403,
+      "code": "AUTH_FORBIDDEN",
+      "receipts": 0
+    },
+    {
+      "name": "rollback_on_audit_failure_then_retry",
+      "passed": true,
+      "rejected": true,
+      "receiptsBefore": 0,
+      "branchesBefore": 0,
+      "auditBefore": 0,
+      "retryStatus": 200
+    },
+    {
+      "name": "rollback_on_receipt_failure_then_retry",
+      "passed": true,
+      "rejected": true,
+      "receiptsBefore": 0,
+      "branchesBefore": 0,
+      "auditBefore": 0,
+      "retryStatus": 200
+    },
+    {
+      "name": "lost_committed_http_response_explicit_retry",
+      "passed": true,
+      "responseStatus": 0,
+      "droppedResponses": 1,
+      "retryStatus": 200,
+      "receipts": 1,
+      "branches": 1
+    },
+    {
+      "name": "two_audit_workers_exactly_once",
+      "passed": true,
+      "targetEvents": 40,
+      "delivered": 40,
+      "matched": 40,
+      "cycles": 4,
+      "summaries": [
+        [
+          {
+            "recovered": 0,
+            "claimed": 12,
+            "delivered": 12,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          },
+          {
+            "recovered": 0,
+            "claimed": 13,
+            "delivered": 13,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          }
+        ],
+        [
+          {
+            "recovered": 0,
+            "claimed": 13,
+            "delivered": 13,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          },
+          {
+            "recovered": 0,
+            "claimed": 12,
+            "delivered": 12,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          }
+        ],
+        [
+          {
+            "recovered": 0,
+            "claimed": 12,
+            "delivered": 12,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          },
+          {
+            "recovered": 0,
+            "claimed": 13,
+            "delivered": 13,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          }
+        ],
+        [
+          {
+            "recovered": 0,
+            "claimed": 1,
+            "delivered": 1,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          },
+          {
+            "recovered": 0,
+            "claimed": 2,
+            "delivered": 2,
+            "deferred": 0,
+            "failed": 0,
+            "skipped": 0
+          }
+        ]
+      ]
+    },
+    {
+      "name": "no_incomplete_receipts",
+      "passed": true,
+      "incomplete": 0
+    }
+  ],
+  "preflight": {
+    "database": "madartest",
+    "counts": {
+      "audit_events": 0,
+      "audit_outbox": 0,
+      "auth_throttles": 0,
+      "branches": 0,
+      "departments": 0,
+      "employees": 0,
+      "numbering_counters": 0,
+      "numbering_issuances": 0,
+      "numbering_series": 0,
+      "permissions": 0,
+      "role_permissions": 0,
+      "roles": 0,
+      "sessions": 0,
+      "user_permission_overrides": 0,
+      "users": 0,
+      "write_operation_receipts": 0
+    },
+    "migrations": [
+      {
+        "hash": "28613c7d87709947e45105ac0489c2ff99d1e5beae4009dca9cb7b0c3f4541c8",
+        "created_at": 1795360011508
+      },
+      {
+        "hash": "0c6666805e703a5b659f642ae1b1fc1bc294f68b36aa77b58e20e171ce70b927",
+        "created_at": 1795605194621
+      }
+    ],
+    "indexes": 42,
+    "foreignKeys": 13,
+    "tls": true
+  },
+  "configuration": {
+    "connectionLimit": 5,
+    "queueLimit": 10,
+    "acquisitionTimeoutMs": 3000,
+    "active": 0,
+    "waiting": 0,
+    "connecting": 0,
+    "closed": false,
+    "admitted": 23,
+    "timedOut": 0,
+    "busy": 0,
+    "totalWaitMs": 662.6515999999997,
+    "totalExecutionMs": 5526.9050000000025,
+    "maxWaitMs": 661.4919,
+    "maxExecutionMs": 2883.9180000000006,
+    "releaseFailures": 0
+  },
+  "timings": {
+    "transactionsIncludingAdmission": {
+      "samples": 50,
+      "p50Ms": 2999.596,
+      "p95Ms": 6189.197,
+      "maxMs": 7083.67
+    },
+    "authorizationStoreCalls": {
+      "samples": 86,
+      "p50Ms": 436.24,
+      "p95Ms": 3843.219,
+      "maxMs": 4008.263
+    },
+    "businessStoreCalls": {
+      "samples": 83,
+      "p50Ms": 108.174,
+      "p95Ms": 226.255,
+      "maxMs": 334.217
+    },
+    "auditStoreCalls": {
+      "samples": 43,
+      "p50Ms": 106.529,
+      "p95Ms": 120.718,
+      "maxMs": 252.283
+    },
+    "note": "Store timings include network and row locks. Grouped per-call samples do not isolate TiDB CPU or pure lock wait."
+  },
+  "finalDiagnosticsBeforeCleanup": {
+    "connectionLimit": 5,
+    "queueLimit": 10,
+    "acquisitionTimeoutMs": 3000,
+    "active": 0,
+    "waiting": 0,
+    "connecting": 0,
+    "closed": false,
+    "admitted": 365,
+    "timedOut": 11,
+    "busy": 0,
+    "totalWaitMs": 23851.126899999945,
+    "totalExecutionMs": 212247.06500000006,
+    "maxWaitMs": 2617.9490000000005,
+    "maxExecutionMs": 5190.025599999997,
+    "releaseFailures": 0
+  },
+  "cleanup": {
+    "database": "madartest",
+    "counts": {
+      "audit_events": 0,
+      "audit_outbox": 0,
+      "auth_throttles": 0,
+      "branches": 0,
+      "departments": 0,
+      "employees": 0,
+      "numbering_counters": 0,
+      "numbering_issuances": 0,
+      "numbering_series": 0,
+      "permissions": 0,
+      "role_permissions": 0,
+      "roles": 0,
+      "sessions": 0,
+      "user_permission_overrides": 0,
+      "users": 0,
+      "write_operation_receipts": 0
+    },
+    "migrations": [
+      {
+        "hash": "28613c7d87709947e45105ac0489c2ff99d1e5beae4009dca9cb7b0c3f4541c8",
+        "created_at": 1795360011508
+      },
+      {
+        "hash": "0c6666805e703a5b659f642ae1b1fc1bc294f68b36aa77b58e20e171ce70b927",
+        "created_at": 1795605194621
+      }
+    ],
+    "indexes": 42,
+    "foreignKeys": 13,
+    "passed": true
+  },
+  "connectionClosed": true,
+  "finishedAt": "2026-11-25T13:40:34.727Z",
+  "status": "failed"
+}
